@@ -1,15 +1,15 @@
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from "firebase/firestore";
 
-export type UserRole = 'super_admin' | 'business_owner' | 'manager' | 'salesperson';
-export type UserStatus = 'active' | 'suspended';
+export type UserRole = "super_admin" | "business_owner" | "manager" | "salesperson";
+export type UserStatus = "active" | "suspended";
 
 export interface UserProfile {
   uid: string;
   email: string;
   name: string;
   role: UserRole;
-  businessId: string | null;
-  branchId: string | null;
+  businessId?: string;
+  branchId?: string;
   status: UserStatus;
   createdAt: Timestamp;
   createdBy: string;
@@ -20,11 +20,11 @@ export interface Business {
   name: string;
   ownerId: string;
   ownerEmail: string;
-  phone: string;
-  address: string;
-  businessType: string;
+  phone?: string;
+  address?: string;
+  businessType?: string;
   logo?: string;
-  status: 'active' | 'suspended';
+  status: UserStatus;
   createdAt: Timestamp;
   createdBy: string;
 }
@@ -33,10 +33,10 @@ export interface Branch {
   id: string;
   businessId: string;
   name: string;
-  location: string;
-  phone: string;
-  managerId: string | null;
-  status: 'active' | 'suspended';
+  location?: string;
+  phone?: string;
+  managerId?: string;
+  status: UserStatus;
   createdAt: Timestamp;
   createdBy: string;
 }
@@ -46,14 +46,14 @@ export interface Product {
   businessId: string;
   branchId: string;
   name: string;
-  sku: string;
-  category: string;
-  buyingPrice: number;
+  sku?: string;
+  category?: string;
+  buyingPrice?: number;
   sellingPrice: number;
   quantity: number;
-  unit: string;
-  lowStockAlert: number;
-  status: 'active' | 'inactive';
+  unit?: string;
+  lowStockAlert?: number;
+  status: "active" | "inactive";
   createdAt: Timestamp;
   createdBy: string;
 }
@@ -61,9 +61,9 @@ export interface Product {
 export interface SaleItem {
   productId: string;
   productName: string;
-  qty: number;
+  quantity: number;
   unitPrice: number;
-  subtotal: number;
+  total: number;
 }
 
 export interface Sale {
@@ -77,11 +77,11 @@ export interface Sale {
   discount: number;
   tax: number;
   total: number;
-  paymentMethod: 'cash' | 'mpesa' | 'card' | 'credit';
+  paymentMethod: "cash" | "mpesa" | "card" | "credit";
   customerName?: string;
   customerPhone?: string;
   notes?: string;
-  status: 'completed' | 'voided';
+  status: "completed" | "voided";
   createdAt: Timestamp;
   updatedAt: Timestamp;
   createdBy: string;
@@ -91,12 +91,12 @@ export interface Expense {
   id: string;
   businessId: string;
   branchId: string;
-  category: 'rent' | 'utilities' | 'salaries' | 'supplies' | 'other';
-  description: string;
+  category: "rent" | "utilities" | "salaries" | "supplies" | "other";
+  description?: string;
   amount: number;
   date: Timestamp;
   receiptUrl?: string;
-  status: 'approved' | 'pending';
+  status: "approved" | "pending";
   createdAt: Timestamp;
   createdBy: string;
 }
@@ -107,11 +107,11 @@ export interface StockMovement {
   branchId: string;
   productId: string;
   productName: string;
-  type: 'restock' | 'sale' | 'adjustment' | 'loss';
+  type: "restock" | "sale" | "adjustment" | "loss";
   quantityBefore: number;
   quantityChanged: number;
   quantityAfter: number;
-  note: string;
+  note?: string;
   createdAt: Timestamp;
   createdBy: string;
 }

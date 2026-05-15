@@ -1,24 +1,24 @@
 {
   "entities": {
-    "user": {
+    "User": {
       "title": "User",
-      "description": "Represents a user in the system, including super admins, owners, managers, and salespersons.",
+      "description": "System users including super admins, business owners, managers, and salespeople.",
       "type": "object",
       "properties": {
-        "email": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
         "name": { "type": "string" },
         "role": { "type": "string", "enum": ["super_admin", "business_owner", "manager", "salesperson"] },
         "businessId": { "type": "string", "description": "ID of the business the user belongs to. Null for super_admin." },
-        "branchId": { "type": "string", "description": "ID of the branch the user belongs to. Null for super_admin and business_owner." },
+        "branchId": { "type": "string", "description": "ID of the specific branch the user works at. Null for super_admin and business_owner." },
         "status": { "type": "string", "enum": ["active", "suspended"] },
         "createdAt": { "type": "string", "format": "date-time" },
-        "createdBy": { "type": "string", "description": "UID of the user who registered this user." }
+        "createdBy": { "type": "string", "description": "UID of the user who created this account." }
       },
       "required": ["email", "name", "role", "status", "createdAt"]
     },
-    "business": {
+    "Business": {
       "title": "Business",
-      "description": "Represents a business registered in the system.",
+      "description": "A multi-tenant business entity.",
       "type": "object",
       "properties": {
         "name": { "type": "string" },
@@ -34,9 +34,9 @@
       },
       "required": ["name", "ownerId", "ownerEmail", "status", "createdAt"]
     },
-    "branch": {
+    "Branch": {
       "title": "Branch",
-      "description": "Represents a branch of a business.",
+      "description": "A physical location or branch of a business.",
       "type": "object",
       "properties": {
         "businessId": { "type": "string" },
@@ -48,11 +48,11 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "createdBy": { "type": "string" }
       },
-      "required": ["businessId", "name", "status", "createdAt"]
+      "required": ["businessId", "name", "status" , "createdAt"]
     },
-    "product": {
+    "Product": {
       "title": "Product",
-      "description": "An inventory item in a branch.",
+      "description": "Inventory items belonging to a specific branch.",
       "type": "object",
       "properties": {
         "businessId": { "type": "string" },
@@ -71,16 +71,19 @@
       },
       "required": ["businessId", "branchId", "name", "sellingPrice", "quantity", "status", "createdAt"]
     },
-    "sale": {
+    "Sale": {
       "title": "Sale",
-      "description": "A sales transaction.",
+      "description": "A recorded transaction.",
       "type": "object",
       "properties": {
         "businessId": { "type": "string" },
         "branchId": { "type": "string" },
         "salespersonId": { "type": "string" },
         "salespersonName": { "type": "string" },
-        "items": { "type": "array" },
+        "items": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
         "subtotal": { "type": "number" },
         "discount": { "type": "number" },
         "tax": { "type": "number" },
@@ -94,11 +97,11 @@
         "updatedAt": { "type": "string", "format": "date-time" },
         "createdBy": { "type": "string" }
       },
-      "required": ["businessId", "branchId", "salespersonId", "items", "total", "status", "createdAt"]
+      "required": ["businessId", "branchId", "salespersonId", "items", "total", "paymentMethod", "status", "createdAt"]
     },
-    "expense": {
+    "Expense": {
       "title": "Expense",
-      "description": "An expense recorded for a branch.",
+      "description": "Recorded business costs.",
       "type": "object",
       "properties": {
         "businessId": { "type": "string" },
@@ -114,9 +117,9 @@
       },
       "required": ["businessId", "branchId", "category", "amount", "date", "status", "createdAt"]
     },
-    "stock_movement": {
-      "title": "Stock Movement",
-      "description": "Logs changes in stock levels.",
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "Audit log for inventory changes.",
       "type": "object",
       "properties": {
         "businessId": { "type": "string" },
@@ -131,37 +134,37 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "createdBy": { "type": "string" }
       },
-      "required": ["businessId", "branchId", "productId", "type", "quantityChanged", "createdAt"]
+      "required": ["businessId", "branchId", "productId", "type", "quantityBefore", "quantityChanged", "quantityAfter", "createdAt"]
     }
   },
   "firestore": {
     "users/{userId}": {
-      "schema": "user",
+      "schema": "User",
       "description": "User profiles and roles."
     },
     "businesses/{businessId}": {
-      "schema": "business",
-      "description": "Business entities."
+      "schema": "Business",
+      "description": "Multi-tenant business accounts."
     },
     "branches/{branchId}": {
-      "schema": "branch",
-      "description": "Business branches."
+      "schema": "Branch",
+      "description": "Business locations."
     },
     "products/{productId}": {
-      "schema": "product",
+      "schema": "Product",
       "description": "Inventory items."
     },
     "sales/{saleId}": {
-      "schema": "sale",
+      "schema": "Sale",
       "description": "Sales transactions."
     },
     "expenses/{expenseId}": {
-      "schema": "expense",
-      "description": "Expense records."
+      "schema": "Expense",
+      "description": "Branch expenses."
     },
     "stock_movements/{movementId}": {
-      "schema": "stock_movement",
-      "description": "Stock change history."
+      "schema": "StockMovement",
+      "description": "Stock audit trail."
     }
   }
 }

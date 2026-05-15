@@ -1,111 +1,38 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Default Deny
+
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- Global Helpers ---
-    function isSignedIn() {
-      return request.auth != null;
-    }
-    
-    function getUserData(uid) {
-      return get(/databases/$(database)/documents/users/$(uid)).data;
-    }
-    
-    function isUserActive() {
-      return getUserData(request.auth.uid).status == 'active';
-    }
-    
+    function isSignedIn() { return request.auth != null; }
+    function getUserData(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
+    function isUserActive() { return getUserData(request.auth.uid).status == 'active'; }
     function isBusinessActive(businessId) {
       return get(/databases/$(database)/documents/businesses/$(businessId)).data.status == 'active';
     }
-
-    function isSuperAdmin() {
-      return isSignedIn() && getUserData(request.auth.uid).role == 'super_admin';
-    }
-
+    function isSuperAdmin() { return isSignedIn() && getUserData(request.auth.uid).role == 'super_admin'; }
     function isBusinessOwner(businessId) {
       let u = getUserData(request.auth.uid);
       return isSignedIn() && u.role == 'business_owner' && u.businessId == businessId && u.status == 'active' && isBusinessActive(businessId);
     }
-
     function isManagerInBranch(branchId) {
       let u = getUserData(request.auth.uid);
       return isSignedIn() && u.role == 'manager' && u.branchId == branchId && u.status == 'active' && isBusinessActive(u.businessId);
     }
-
     function isSalespersonInBranch(branchId) {
       let u = getUserData(request.auth.uid);
       return isSignedIn() && u.role == 'salesperson' && u.branchId == branchId && u.status == 'active' && isBusinessActive(u.businessId);
     }
-
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    // --- Entity Validations ---
-
-    function isValidUser(data) {
-      return data.keys().hasAll(['email', 'name', 'role', 'status', 'createdAt']) &&
-             data.email is string && data.email.size() <= 200 &&
-             data.name is string && data.name.size() <= 200 &&
-             data.role in ['super_admin', 'business_owner', 'manager', 'salesperson'] &&
-             data.status in ['active', 'suspended'] &&
-             data.createdAt == request.time;
-    }
-
-    function isValidBusiness(data) {
-      return data.keys().hasAll(['name', 'ownerId', 'ownerEmail', 'status', 'createdAt']) &&
-             data.name is string && data.name.size() <= 200 &&
-             data.ownerId is string &&
-             data.status in ['active', 'suspended'] &&
-             data.createdAt == request.time;
-    }
-
-    function isValidBranch(data) {
-      return data.keys().hasAll(['businessId', 'name', 'status', 'createdAt']) &&
-             data.businessId is string &&
-             data.name is string && data.name.size() <= 200 &&
-             data.status in ['active', 'suspended'] &&
-             data.createdAt == request.time;
-    }
-
-    function isValidProduct(data) {
-      return data.keys().hasAll(['businessId', 'branchId', 'name', 'sellingPrice', 'quantity', 'status', 'createdAt']) &&
-             data.name is string && data.name.size() <= 200 &&
-             data.sellingPrice is number && data.sellingPrice >= 0 &&
-             data.quantity is number &&
-             data.status in ['active', 'inactive'] &&
-             data.createdAt == request.time;
-    }
-
-    function isValidSale(data) {
-      return data.keys().hasAll(['businessId', 'branchId', 'salespersonId', 'items', 'total', 'status', 'createdAt']) &&
-             data.items is list && data.items.size() > 0 &&
-             data.total is number && data.total >= 0 &&
-             data.status in ['completed', 'voided'] &&
-             data.createdAt == request.time;
-    }
-
-    // --- Match Rules ---
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
 
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin() || isBusinessOwner(getUserData(userId).businessId));
-      allow create: if isSignedIn() && isValidUser(incoming()) && (isSuperAdmin() || isBusinessOwner(incoming().businessId));
+      allow create: if isSignedIn() && (isSuperAdmin() || isBusinessOwner(incoming().businessId));
       allow update: if isSignedIn() && (
-        isSuperAdmin() || 
+        isSuperAdmin() ||
         (isBusinessOwner(existing().businessId) && incoming().businessId == existing().businessId) ||
         (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['name']))
       );
@@ -113,7 +40,7 @@ service cloud.firestore {
 
     match /businesses/{businessId} {
       allow read: if isSignedIn() && (isSuperAdmin() || getUserData(request.auth.uid).businessId == businessId);
-      allow create: if isSignedIn() && isValidBusiness(incoming()) && (isSuperAdmin() || incoming().ownerId == request.auth.uid);
+      allow create: if isSignedIn() && (isSuperAdmin() || incoming().ownerId == request.auth.uid);
       allow update: if isSignedIn() && (isSuperAdmin() || isBusinessOwner(businessId)) && incoming().ownerId == existing().ownerId;
     }
 
@@ -129,9 +56,9 @@ service cloud.firestore {
 
     match /sales/{saleId} {
       allow read: if isSignedIn() && (isSuperAdmin() || getUserData(request.auth.uid).businessId == resource.data.businessId);
-      allow create: if isSignedIn() && isValidSale(incoming()) && (isManagerInBranch(incoming().branchId) || isSalespersonInBranch(incoming().branchId));
+      allow create: if isSignedIn() && (isManagerInBranch(incoming().branchId) || isSalespersonInBranch(incoming().branchId));
       allow update: if isSignedIn() && (
-        isSuperAdmin() || 
+        isSuperAdmin() ||
         isManagerInBranch(existing().branchId) ||
         (isSalespersonInBranch(existing().branchId) && existing().createdBy == request.auth.uid && (request.time.toMillis() - existing().createdAt.toMillis() < 7200000))
       );
