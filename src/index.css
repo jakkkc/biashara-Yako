@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #3b82f6;
+  --color-primary-light: #60a5fa;
+  --color-accent: #8b5cf6;
+  --color-accent-light: #a78bfa;
+  
+  --font-serif: "Playfair Display", serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700;900&family=JetBrains+Mono&display=swap');
+
+body {
+  @apply font-sans bg-[#020617] text-slate-100;
+  margin: 0;
+  height: 100%;
+}
+
+@utility mesh-gradient {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  background: radial-gradient(circle at 0% 0%, #1e1b4b 0%, transparent 50%), 
+              radial-gradient(circle at 100% 100%, #312e81 0%, transparent 50%), 
+              radial-gradient(circle at 100% 0%, #1e3a8a 0%, transparent 50%), 
+              radial-gradient(circle at 0% 100%, #1e40af 0%, transparent 50%);
+}
+
+@utility glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@utility glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@utility glass-sidebar {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(30px);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
