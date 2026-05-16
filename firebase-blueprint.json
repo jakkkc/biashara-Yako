@@ -2,23 +2,23 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "System users including super admins, business owners, managers, and salespeople.",
+      "description": "User account in the POS system",
       "type": "object",
       "properties": {
-        "email": { "type": "string", "format": "email" },
+        "email": { "type": "string" },
         "name": { "type": "string" },
         "role": { "type": "string", "enum": ["super_admin", "business_owner", "manager", "salesperson"] },
-        "businessId": { "type": "string", "description": "ID of the business the user belongs to. Null for super_admin." },
-        "branchId": { "type": "string", "description": "ID of the specific branch the user works at. Null for super_admin and business_owner." },
+        "businessId": { "type": "string" },
+        "branchId": { "type": "string" },
         "status": { "type": "string", "enum": ["active", "suspended"] },
         "createdAt": { "type": "string", "format": "date-time" },
-        "createdBy": { "type": "string", "description": "UID of the user who created this account." }
+        "createdBy": { "type": "string" }
       },
-      "required": ["email", "name", "role", "status", "createdAt"]
+      "required": ["email", "name", "role", "status", "createdAt", "createdBy"]
     },
     "Business": {
       "title": "Business",
-      "description": "A multi-tenant business entity.",
+      "description": "East African Business details",
       "type": "object",
       "properties": {
         "name": { "type": "string" },
@@ -32,11 +32,11 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "createdBy": { "type": "string" }
       },
-      "required": ["name", "ownerId", "ownerEmail", "status", "createdAt"]
+      "required": ["name", "ownerId", "ownerEmail", "phone", "address", "businessType", "status", "createdAt", "createdBy"]
     },
     "Branch": {
       "title": "Branch",
-      "description": "A physical location or branch of a business.",
+      "description": "Branch owned by a business",
       "type": "object",
       "properties": {
         "businessId": { "type": "string" },
@@ -48,11 +48,11 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "createdBy": { "type": "string" }
       },
-      "required": ["businessId", "name", "status" , "createdAt"]
+      "required": ["businessId", "name", "location", "phone", "managerId", "status", "createdAt", "createdBy"]
     },
     "Product": {
       "title": "Product",
-      "description": "Inventory items belonging to a specific branch.",
+      "description": "Inventory product item",
       "type": "object",
       "properties": {
         "businessId": { "type": "string" },
@@ -69,11 +69,11 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "createdBy": { "type": "string" }
       },
-      "required": ["businessId", "branchId", "name", "sellingPrice", "quantity", "status", "createdAt"]
+      "required": ["businessId", "branchId", "name", "sku", "category", "buyingPrice", "sellingPrice", "quantity", "unit", "lowStockAlert", "status", "createdAt", "createdBy"]
     },
     "Sale": {
       "title": "Sale",
-      "description": "A recorded transaction.",
+      "description": "Completed transaction sales receipt",
       "type": "object",
       "properties": {
         "businessId": { "type": "string" },
@@ -82,7 +82,16 @@
         "salespersonName": { "type": "string" },
         "items": {
           "type": "array",
-          "items": { "type": "object" }
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "productName": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unitPrice": { "type": "number" },
+              "total": { "type": "number" }
+            }
+          }
         },
         "subtotal": { "type": "number" },
         "discount": { "type": "number" },
@@ -97,11 +106,11 @@
         "updatedAt": { "type": "string", "format": "date-time" },
         "createdBy": { "type": "string" }
       },
-      "required": ["businessId", "branchId", "salespersonId", "items", "total", "paymentMethod", "status", "createdAt"]
+      "required": ["businessId", "branchId", "salespersonId", "salespersonName", "items", "subtotal", "discount", "tax", "total", "paymentMethod", "status", "createdAt", "updatedAt", "createdBy"]
     },
     "Expense": {
       "title": "Expense",
-      "description": "Recorded business costs.",
+      "description": "Business expense details",
       "type": "object",
       "properties": {
         "businessId": { "type": "string" },
@@ -109,17 +118,17 @@
         "category": { "type": "string", "enum": ["rent", "utilities", "salaries", "supplies", "other"] },
         "description": { "type": "string" },
         "amount": { "type": "number" },
-        "date": { "type": "string", "format": "date-time" },
+        "date": { "type": "string" },
         "receiptUrl": { "type": "string" },
         "status": { "type": "string", "enum": ["approved", "pending"] },
         "createdAt": { "type": "string", "format": "date-time" },
         "createdBy": { "type": "string" }
       },
-      "required": ["businessId", "branchId", "category", "amount", "date", "status", "createdAt"]
+      "required": ["businessId", "branchId", "category", "description", "amount", "date", "status", "createdAt", "createdBy"]
     },
     "StockMovement": {
       "title": "StockMovement",
-      "description": "Audit log for inventory changes.",
+      "description": "Stock inventory movement logs",
       "type": "object",
       "properties": {
         "businessId": { "type": "string" },
@@ -134,37 +143,37 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "createdBy": { "type": "string" }
       },
-      "required": ["businessId", "branchId", "productId", "type", "quantityBefore", "quantityChanged", "quantityAfter", "createdAt"]
+      "required": ["businessId", "branchId", "productId", "productName", "type", "quantityBefore", "quantityChanged", "quantityAfter", "createdAt", "createdBy"]
     }
   },
   "firestore": {
     "users/{userId}": {
       "schema": "User",
-      "description": "User profiles and roles."
+      "description": "Manage user role and status details"
     },
     "businesses/{businessId}": {
       "schema": "Business",
-      "description": "Multi-tenant business accounts."
+      "description": "Company profiles and credentials"
     },
     "branches/{branchId}": {
       "schema": "Branch",
-      "description": "Business locations."
+      "description": "Branch location info and assigned managers"
     },
     "products/{productId}": {
       "schema": "Product",
-      "description": "Inventory items."
+      "description": "Store items and inventory levels"
     },
     "sales/{saleId}": {
       "schema": "Sale",
-      "description": "Sales transactions."
+      "description": "Sales invoices and totals"
     },
     "expenses/{expenseId}": {
       "schema": "Expense",
-      "description": "Branch expenses."
+      "description": "Operating expenditure logging"
     },
     "stock_movements/{movementId}": {
       "schema": "StockMovement",
-      "description": "Stock audit trail."
+      "description": "Stock change auditable history"
     }
   }
 }

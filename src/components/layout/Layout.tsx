@@ -1,136 +1,60 @@
-import { useAuth } from "../../hooks/useAuth";
-import { Link, useNavigate, useLocation } from "react-router";
-import { 
-  LayoutDashboard, 
-  Store, 
-  Users, 
-  ShoppingBag, 
-  Receipt, 
-  TrendingUp, 
-  LogOut, 
-  Menu, 
-  X, 
-  UserCircle 
-} from "lucide-react";
-import { useState } from "react";
-import { Button } from "../ui";
-import { cn } from "../../lib/utils";
+import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { Sidebar } from './Sidebar';
+import { TopBar } from './TopBar';
+import { BottomNav } from './BottomNav';
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  const { profile, logout } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
+export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading } = useAuth();
+  const [collapsed, setCollapsed] = useState(false);
 
-  const handleLogout = async () => {
-    if (confirm("Are you sure you want to log out?")) {
-      await logout();
-      navigate("/login");
-    }
-  };
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-[#050510] flex flex-col items-center justify-center gap-4 z-50">
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-indigo-500 via-emerald-500 to-indigo-500 animate-pulse" />
+        {/* Glowing glass loading card */}
+        <div className="glass-card max-w-sm p-8 text-center flex flex-col items-center gap-4 border-indigo-500/20">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500" />
+          <div className="space-y-1.5 mt-2">
+            <h3 className="text-white font-bold tracking-wide">Inarudisha data yako...</h3>
+            <p className="text-xs text-slate-400">Loading Biashara Yako POS resources. Please wait.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const navItems = [
-    { name: 'Dashboard', icon: LayoutDashboard, href: '/', roles: ['super_admin', 'business_owner', 'manager'] },
-    { name: 'POS', icon: ShoppingBag, href: '/pos', roles: ['manager', 'salesperson'] },
-    { name: 'Businesses', icon: Store, href: '/admin/businesses', roles: ['super_admin'] },
-    { name: 'Branches', icon: Store, href: '/owner/branches', roles: ['business_owner'] },
-    { name: 'Inventory', icon: ShoppingBag, href: '/inventory', roles: ['manager'] },
-    { name: 'Sales', icon: Receipt, href: '/sales', roles: ['business_owner', 'manager', 'salesperson'] },
-    { name: 'Expenses', icon: TrendingUp, href: '/expenses', roles: ['business_owner', 'manager'] },
-    { name: 'Staff', icon: Users, href: '/staff', roles: ['business_owner', 'manager'] },
-  ];
-
-  const filteredNav = navItems.filter(item => 
-    profile && item.roles.includes(profile.role)
-  );
+  // If not logged in, just display the clean public viewport (landing, login, registration)
+  if (!user) {
+    return <main className="min-h-screen text-slate-100">{children}</main>;
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar Mobile Toggle */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="bg-white"
-        >
-          {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-        </Button>
+    <div className="flex min-h-screen bg-[#050510] text-slate-200 overflow-hidden font-sans">
+      
+      {/* 1. Desktop & Tablet Sidebar */}
+      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+
+      {/* 2. Main Window Wrapper */}
+      <div 
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 min-h-screen ${
+          collapsed ? 'md:pl-16' : 'md:pl-64'
+        }`}
+      >
+        {/* Top Header tools */}
+        <TopBar />
+
+        {/* Dynamic routing scroll page contents */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 md:pb-6 text-slate-100 bg-slate-950/20">
+          <div className="max-w-7xl mx-auto w-full">
+            {children}
+          </div>
+        </main>
+
+        {/* Mobile Bottom navbar */}
+        <BottomNav />
       </div>
-
-      {/* Sidebar */}
-      <aside className={cn(
-        "fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        <div className="p-6">
-          <h1 className="text-xl font-bold text-emerald-400">Biashara Yako</h1>
-          <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider font-semibold">
-            {profile?.role.replace('_', ' ')}
-          </p>
-        </div>
-
-        <nav className="mt-4 px-4 space-y-1">
-          {filteredNav.map((item) => (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors",
-                location.pathname === item.href 
-                  ? "bg-emerald-600 text-white" 
-                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
-              )}
-              onClick={() => setSidebarOpen(false)}
-            >
-              <item.icon size={18} />
-              {item.name}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-slate-800">
-          <div className="flex items-center gap-3 mb-6">
-            <UserCircle className="text-slate-400" />
-            <div className="overflow-hidden">
-              <p className="text-sm font-medium truncate">{profile?.name}</p>
-              <p className="text-xs text-slate-500 truncate">{profile?.email}</p>
-            </div>
-          </div>
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start text-slate-400 hover:text-white hover:bg-slate-800 p-0"
-            onClick={handleLogout}
-          >
-            <LogOut size={18} className="mr-3" />
-            Logout
-          </Button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 min-w-0 overflow-auto">
-        <header className="h-16 border-b border-slate-200 bg-white flex items-center px-8 lg:px-12 sticky top-0 z-30">
-          <h2 className="text-lg font-semibold text-slate-800">
-            {filteredNav.find(item => location.pathname === item.href)?.name || 'Dashboard'}
-          </h2>
-          <div className="ml-auto flex items-center gap-4">
-             {/* Profile Link or other top-right items */}
-          </div>
-        </header>
-
-        <div className="p-8 lg:p-12">
-          {children}
-        </div>
-      </main>
-
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <div 
-          className="lg:hidden fixed inset-0 bg-black/50 z-30 transition-opacity"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
     </div>
   );
-}
+};
+export default Layout;
