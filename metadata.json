@@ -1,9 +1,8 @@
 {
   "name": "Biashara Yako POS",
-  "description": "A production-grade, multi-tenant SaaS Point-of-Sale (POS) platform for East African businesses, complete with real-time telemetry, branch controls, expenses logged atomically, and AI-enabled insights.",
-  "requestFramePermissions": [
-    "camera",
-    "geolocation"
-  ],
-  "majorCapabilities": []
+  "description": "A production-grade, multi-tenant POS system for East African businesses with AI-powered insights and offline support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

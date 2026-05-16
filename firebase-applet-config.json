@@ -1,9 +1,10 @@
 {
-  "projectId": "gen-lang-client-0130842986",
-  "appId": "1:454410136446:web:cffaf2214c6d021751e12f",
-  "apiKey": "AIzaSyDTFz_BLoMWNT3QGSNgtFhiMS2-YSTQXQI",
-  "authDomain": "gen-lang-client-0130842986.firebaseapp.com",
+  "projectId": "isometric-transit-g5xj8",
+  "appId": "1:189459891124:web:a1f7e3ce0edcaf7b5ba8e1",
+  "apiKey": "AIzaSyAXnwYtUy2jMHAfQ4BORsr6tDhFy50RF0w",
+  "authDomain": "isometric-transit-g5xj8.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-604e9c2a-f8ea-4394-aa19-a91d7ed5dfe3",
-  "storageBucket": "gen-lang-client-0130842986.firebasestorage.app",
-  "messagingSenderId": "454410136446"
+  "storageBucket": "isometric-transit-g5xj8.firebasestorage.app",
+  "messagingSenderId": "189459891124",
+  "measurementId": ""
 }

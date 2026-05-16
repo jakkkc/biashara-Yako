@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- PHASE 3: Primitives ---
+    function isSignedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    
+    function userDoc(userId) { return get(/databases/$(database)/documents/users/$(userId)); }
+    function myDoc() { return userDoc(uid()); }
+    function role() { return myDoc().data.role; }
+    
+    function isSuperAdmin() { return isSignedIn() && role() == 'super_admin'; }
+    function isOwner() { return isSignedIn() && role() == 'business_owner'; }
+    function isManager() { return isSignedIn() && role() == 'manager'; }
+    function isSalesperson() { return isSignedIn() && role() == 'salesperson'; }
+
+    // --- PHASE 4: Validation Helpers ---
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'name', 'role', 'status', 'createdAt', 'createdBy'])
+        && data.email is string && data.email.size() <= 200
+        && data.name is string && data.name.size() <= 100
+        && data.role in ['super_admin', 'business_owner', 'manager', 'salesperson']
+        && data.status in ['active', 'suspended']
+        && data.createdAt is string
+        && data.createdBy is string;
+    }
+
+    function isValidBusiness(data) {
+      return data.keys().hasAll(['name', 'ownerId', 'ownerEmail', 'status', 'createdAt', 'createdBy'])
+        && data.name is string && data.name.size() <= 100
+        && data.ownerId == uid() // Enforcement: only creator can be owner on create
+        && data.ownerEmail is string
+        && data.status in ['active', 'suspended']
+        && data.createdAt == request.time
+        && data.createdBy == uid();
+    }
+
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (uid() == userId || isSuperAdmin() || isOwner() || isManager());
+      allow create: if isSuperAdmin() && isValidUser(incoming());
+      // Updates: self or admin
+      allow update: if isSignedIn() && (
+        (uid() == userId && incoming().diff(existing()).affectedKeys().hasOnly(['name'])) ||
+        isSuperAdmin()
+      );
+      allow delete: if isSuperAdmin();
+    }
+
+    match /businesses/{businessId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidBusiness(incoming());
+      allow update: if isSignedIn() && (
+        isSuperAdmin() || 
+        (isOwner() && existing().ownerId == uid() && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'address', 'businessType', 'logo', 'currency']))
+      );
+      allow delete: if isSuperAdmin();
+    }
+
+    match /branches/{branchId} {
+      allow read: if isSignedIn() && userDoc(uid()).data.businessId == resource.data.businessId;
+      allow write: if isSignedIn() && (isSuperAdmin() || (isOwner() && userDoc(uid()).data.businessId == incoming().businessId));
+    }
+
+    match /products/{productId} {
+      allow read: if isSignedIn() && userDoc(uid()).data.businessId == resource.data.businessId;
+      allow write: if isSignedIn() && (isOwner() || isManager()) && userDoc(uid()).data.businessId == incoming().businessId;
+    }
+
+    match /sales/{saleId} {
+      allow read: if isSignedIn() && userDoc(uid()).data.businessId == resource.data.businessId;
+      allow create: if isSignedIn() && incoming().businessId == userDoc(uid()).data.businessId;
+      allow update: if isSignedIn() && (isOwner() || isManager()) && existing().businessId == userDoc(uid()).data.businessId;
+    }
+
+    match /expenses/{expenseId} {
+      allow read: if isSignedIn() && userDoc(uid()).data.businessId == resource.data.businessId;
+      allow create: if (isOwner() || isManager()) && incoming().businessId == userDoc(uid()).data.businessId;
+      allow update: if (isOwner() || isManager()) && existing().businessId == userDoc(uid()).data.businessId;
+      allow delete: if isOwner() && existing().businessId == userDoc(uid()).data.businessId;
+    }
+
+    match /notifications/{notificationId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == uid();
+      allow create: if isSignedIn();
+    }
+  }
+}
