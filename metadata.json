@@ -1,8 +1,6 @@
 {
   "name": "Biashara Yako POS",
-  "description": "A full-stack Point of Sale (POS) system for businesses to manage multiple branches, inventory, sales, and expenses with role-based access control.",
+  "description": "A professional PWA Point of Sale system for Kenyan businesses, supporting multi-branch management, inventory tracking, and sales analytics.",
   "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

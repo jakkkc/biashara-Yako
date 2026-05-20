@@ -1,105 +1,130 @@
-import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
-import { useAuth } from '../../contexts/AuthContext';
-import { Business, Sale } from '../../types';
-import { Building2, TrendingUp, ShoppingBag, Users, AlertCircle } from 'lucide-react';
-import { formatCurrency } from '../../lib/utils';
+import { useState } from 'react';
+import { LayoutDashboard, Users, Store, ShieldAlert, BarChart, Settings, Search, MoreVertical } from 'lucide-react';
 
 export default function SuperAdminDashboard() {
-  const [stats, setStats] = useState({
-    totalBusinesses: 0,
-    activeBusinesses: 0,
-    totalRevenue: 0,
-    totalUsers: 0
-  });
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const bSnap = await getDocs(query(collection(db, 'businesses')));
-      const businesses = bSnap.docs.map(d => d.data() as Business);
-      
-      const uSnap = await getDocs(query(collection(db, 'users')));
-      
-      const sSnap = await getDocs(query(collection(db, 'sales')));
-      const sales = sSnap.docs.map(d => d.data() as Sale);
-
-      setStats({
-        totalBusinesses: businesses.length,
-        activeBusinesses: businesses.filter(b => b.status === 'active').length,
-        totalRevenue: sales.reduce((acc, s) => acc + s.total, 0),
-        totalUsers: uSnap.size
-      });
-    };
-    fetchData();
-  }, []);
-
   return (
-    <div className="space-y-8 relative z-10">
-      <div>
-        <h1 className="text-3xl font-bold text-white font-serif tracking-tight">Platform Overview</h1>
-        <p className="text-slate-400 font-medium mt-1">Global statistics across all registered businesses.</p>
-      </div>
+    <div className="min-h-screen bg-slate-50 flex">
+      {/* Admin Sidebar */}
+      <aside className="w-72 bg-navy text-white flex flex-col pt-8 border-r border-white/5">
+        <div className="px-8 mb-12 flex items-center gap-2">
+           <ShieldAlert className="text-gold w-8 h-8" />
+           <span className="text-xl font-bold tracking-tight uppercase">Super <span className="text-gold">Admin</span></span>
+        </div>
+        <nav className="flex-1 px-4 space-y-2">
+           <button className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl bg-gold text-navy font-bold transition-all">
+              <LayoutDashboard size={22} /> System Status
+           </button>
+           <button className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-slate-400 hover:text-white hover:bg-white/5 font-bold transition-all text-left">
+              <Store size={22} /> Businesses
+           </button>
+           <button className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-slate-400 hover:text-white hover:bg-white/5 font-bold transition-all text-left">
+              <BarChart size={22} /> Aggregate Analytics
+           </button>
+           <button className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-slate-400 hover:text-white hover:bg-white/5 font-bold transition-all text-left">
+              <Settings size={22} /> Platform Settings
+           </button>
+        </nav>
+        <div className="p-8 border-t border-white/5">
+           <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-2">Systems Operator</p>
+           <p className="font-bold text-sm">Jackson Mwaniki</p>
+           <p className="text-xs text-gold">jacmwaniki@gmail.com</p>
+        </div>
+      </aside>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <GlobalStatCard title="Total Businesses" value={stats.totalBusinesses.toString()} icon={Building2} color="text-blue-400" bgColor="bg-blue-600/20" />
-        <GlobalStatCard title="Active Units" value={stats.activeBusinesses.toString()} icon={CheckCircle} color="text-emerald-400" bgColor="bg-emerald-600/20" />
-        <GlobalStatCard title="Platform Revenue" value={formatCurrency(stats.totalRevenue)} icon={TrendingUp} color="text-violet-400" bgColor="bg-violet-600/20" />
-        <GlobalStatCard title="Total Users" value={stats.totalUsers.toString()} icon={Users} color="text-orange-400" bgColor="bg-orange-600/20" />
-      </div>
+      {/* Admin Main */}
+      <main className="flex-1 p-12">
+        <header className="flex justify-between items-center mb-12">
+           <div>
+              <h1 className="text-4xl font-black text-navy italic">Global Control Center</h1>
+              <p className="text-slate-500">Managing the pulse of Biashara Yako platform.</p>
+           </div>
+           <div className="flex gap-4">
+              <div className="relative">
+                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                 <input 
+                   type="text" 
+                   placeholder="Search businesses..." 
+                   className="w-96 h-14 pl-12 pr-4 bg-white border border-slate-200 rounded-2xl shadow-sm outline-none"
+                 />
+              </div>
+           </div>
+        </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="glass-card p-10 rounded-[40px] shadow-sm border border-white/10 relative overflow-hidden group">
-          <div className="absolute -right-24 -top-24 w-64 h-64 bg-blue-500/5 blur-[100px] rounded-full group-hover:bg-blue-500/10 transition-all" />
-          <h3 className="text-xl font-bold mb-8 font-serif text-white tracking-tight relative z-10">System Health</h3>
-          <div className="space-y-4 relative z-10">
-            <div className="flex items-center justify-between p-6 bg-white/5 border border-white/5 rounded-3xl transition hover:bg-white/10">
-              <div className="flex items-center gap-4">
-                <div className="p-2 bg-emerald-600/20 rounded-xl text-emerald-400">
-                  <CheckCircle className="w-5 h-5" />
-                </div>
-                <span className="font-bold text-slate-300">Firebase Operations</span>
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">Optimal</span>
-            </div>
-            <div className="flex items-center justify-between p-6 bg-white/5 border border-white/5 rounded-3xl transition hover:bg-white/10">
-              <div className="flex items-center gap-4">
-                <div className="p-2 bg-blue-600/20 rounded-xl text-blue-400">
-                  <Users className="w-5 h-5" />
-                </div>
-                <span className="font-bold text-slate-300">User Authentication</span>
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">Connected</span>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+           <AdminStatCard title="Total Businesses" value="128" change="+12" icon={Store} />
+           <AdminStatCard title="Total Transactions" value="Ksh 1.2M" change="+450k" icon={BarChart} />
+           <AdminStatCard title="Active Users" value="842" change="+24" icon={Users} />
         </div>
 
-        <div className="glass-card p-10 rounded-[40px] shadow-sm border border-white/10 relative overflow-hidden flex flex-col justify-center items-center">
-          <div className="absolute inset-0 bg-white/[0.02] pointer-events-none" />
-          <h3 className="text-xl font-bold mb-8 font-serif text-white tracking-tight absolute top-10 left-10">System Alerts</h3>
-          <div className="flex flex-col items-center justify-center space-y-4 opacity-40">
-            <div className="p-5 bg-white/5 rounded-full border border-white/5">
-              <AlertCircle className="w-12 h-12 text-slate-500" />
-            </div>
-            <p className="text-sm font-bold uppercase tracking-widest text-slate-600">No critical alerts</p>
-          </div>
+        <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+           <div className="p-8 border-b border-slate-100 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-navy">Registered Businesses</h2>
+              <button className="text-sm font-bold text-gold">View All</button>
+           </div>
+           <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                   <tr className="bg-slate-50 text-slate-400 text-[10px] font-black tracking-widest uppercase">
+                      <th className="px-8 py-4">Business Name</th>
+                      <th className="px-6 py-4">Owner</th>
+                      <th className="px-6 py-4">Plan</th>
+                      <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4">Sales</th>
+                      <th className="px-8 py-4 text-right">Action</th>
+                   </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                   {[
+                     { name: 'Nairobi Groceries', owner: 'john@gmail.com', plan: 'Premium', status: 'Active', sales: 'Ksh 45k' },
+                     { name: 'Mombasa Hardware', owner: 'musa@outlook.com', plan: 'Free', status: 'Active', sales: 'Ksh 12k' },
+                     { name: 'Nakuru Boutique', owner: 'sarah@gmail.com', plan: 'Basic', status: 'Suspended', sales: 'Ksh 0' },
+                   ].map((biz, i) => (
+                     <tr key={i} className="hover:bg-slate-50/50 transition-all group">
+                        <td className="px-8 py-6 font-bold text-navy">{biz.name}</td>
+                        <td className="px-6 py-6 text-slate-500">{biz.owner}</td>
+                        <td className="px-6 py-6">
+                           <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                             biz.plan === 'Premium' ? 'bg-gold/10 text-gold-light' : 'bg-slate-100 text-slate-400'
+                           }`}>
+                              {biz.plan}
+                           </span>
+                        </td>
+                        <td className="px-6 py-6">
+                           <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${biz.status === 'Active' ? 'bg-green-500' : 'bg-red-500'}`} />
+                              <span className="text-sm font-medium">{biz.status}</span>
+                           </div>
+                        </td>
+                        <td className="px-6 py-6 font-bold text-navy">{biz.sales}</td>
+                        <td className="px-8 py-6 text-right">
+                           <button className="p-2 text-slate-300 hover:text-navy hover:bg-slate-100 rounded-xl transition-all">
+                              <MoreVertical size={20} />
+                           </button>
+                        </td>
+                     </tr>
+                   ))}
+                </tbody>
+              </table>
+           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
 
-function GlobalStatCard({ title, value, icon: Icon, color, bgColor }: any) {
+function AdminStatCard({ title, value, change, icon: Icon }: any) {
   return (
-    <div className="glass-card p-8 rounded-[32px] border border-white/10 relative overflow-hidden group hover:scale-[1.02] transition-all">
-      <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110", bgColor, color)}>
-        <Icon className="w-7 h-7" />
-      </div>
-      <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{title}</p>
-      <h4 className="text-3xl font-black text-white mt-2 tracking-tight">{value}</h4>
+    <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+       <div className="flex justify-between items-start mb-6">
+          <div className="w-14 h-14 bg-navy/5 rounded-2xl flex items-center justify-center text-navy">
+             <Icon size={28} />
+          </div>
+          <span className="text-xs font-bold text-green-500 bg-green-50 px-2 py-1 rounded-lg">
+             {change}
+          </span>
+       </div>
+       <p className="text-slate-500 font-medium mb-1">{title}</p>
+       <h4 className="text-3xl font-black text-navy">{value}</h4>
     </div>
   );
 }
-
-import { CheckCircle } from 'lucide-react';
-import { cn } from '../../lib/utils';

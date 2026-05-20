@@ -1,32 +1,30 @@
-import { Timestamp } from 'firebase/firestore';
+/**
+ * Core types for Biashara Yako POS
+ */
 
-export type UserRole = 'super_admin' | 'business_owner' | 'manager' | 'salesperson';
-export type UserStatus = 'active' | 'suspended';
-
-export interface UserProfile {
-  uid: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  businessId: string | null;
-  branchId: string | null;
-  status: UserStatus;
-  createdAt: Timestamp;
-  createdBy: string;
-}
+export type BusinessStatus = 'active' | 'suspended';
+export type SubscriptionPlan = 'Free' | 'Basic' | 'Premium';
+export type UserRole = 'Owner' | 'BranchManager' | 'Salesperson' | 'Cashier' | 'StockController';
+export type PaymentMethod = 'Cash' | 'M-Pesa' | 'Bank Transfer' | 'Credit';
+export type SaleStatus = 'completed' | 'refunded';
+export type TransferStatus = 'pending' | 'approved' | 'rejected';
 
 export interface Business {
   id: string;
   name: string;
-  ownerId: string;
+  type: string;
+  logoUrl?: string;
+  location: string;
+  currency: string;
+  vatEnabled: boolean;
+  vatPercentage: number;
   ownerEmail: string;
-  phone: string;
-  address: string;
-  businessType: string;
-  logo?: string;
-  status: 'active' | 'suspended';
-  createdAt: Timestamp;
-  createdBy: string;
+  status: BusinessStatus;
+  subscription: {
+    plan: SubscriptionPlan;
+    expiryDate: number; // timestamp
+  };
+  createdAt: number;
 }
 
 export interface Branch {
@@ -34,84 +32,131 @@ export interface Branch {
   businessId: string;
   name: string;
   location: string;
-  phone: string;
-  managerId: string | null;
-  status: 'active' | 'suspended';
-  createdAt: Timestamp;
-  createdBy: string;
+  contactNumber: string;
+  active: boolean;
+  createdAt: number;
+}
+
+export interface UserProfile {
+  id: string; // Auth UID
+  businessId: string;
+  branchId?: string; // Optional for multi-branch owners
+  role: UserRole;
+  username?: string; // For employees
+  displayName: string;
+  email?: string; // For owners
+  photoUrl?: string;
+  lastLogin?: number;
+  createdAt: number;
 }
 
 export interface Product {
   id: string;
-  businessId: string;
   branchId: string;
   name: string;
-  sku: string;
   category: string;
-  buyingPrice: number;
+  sku: string;
+  costPrice: number;
   sellingPrice: number;
   quantity: number;
-  unit: string;
-  lowStockAlert: number;
-  status: 'active' | 'inactive';
-  createdAt: Timestamp;
-  createdBy: string;
+  reorderLevel: number;
+  supplierName?: string;
+  createdAt: number;
 }
 
 export interface SaleItem {
   productId: string;
   productName: string;
-  qty: number;
-  unitPrice: number;
-  subtotal: number;
+  quantity: number;
+  price: number;
+  discount: number; // amount
 }
 
 export interface Sale {
   id: string;
   businessId: string;
   branchId: string;
-  salespersonId: string;
-  salespersonName: string;
+  userId: string;
+  userName: string;
+  customerId?: string;
+  customerName?: string;
   items: SaleItem[];
   subtotal: number;
-  discount: number;
-  tax: number;
+  vatAmount: number;
+  discountTotal: number;
   total: number;
-  paymentMethod: 'cash' | 'mpesa' | 'card' | 'credit';
-  customerName?: string;
-  customerPhone?: string;
-  notes?: string;
-  status: 'completed' | 'voided';
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  createdBy: string;
+  paymentMethod: PaymentMethod;
+  mpesaReference?: string;
+  status: SaleStatus;
+  createdAt: number;
 }
 
 export interface Expense {
   id: string;
-  businessId: string;
   branchId: string;
-  category: 'rent' | 'utilities' | 'salaries' | 'supplies' | 'other';
-  description: string;
+  category: string;
   amount: number;
-  date: Timestamp;
+  description: string;
   receiptUrl?: string;
-  status: 'approved' | 'pending';
-  createdAt: Timestamp;
-  createdBy: string;
+  loggedBy: string;
+  loggedByName: string;
+  createdAt: number;
 }
 
-export interface StockMovement {
+export interface Customer {
+  id: string;
+  branchId: string;
+  name: string;
+  phone: string;
+  email?: string;
+  notes?: string;
+  totalSpent: number;
+  visitCount: number;
+  creditBalance: number;
+  createdAt: number;
+}
+
+export interface Supplier {
   id: string;
   businessId: string;
-  branchId: string;
-  productId: string;
-  productName: string;
-  type: 'restock' | 'sale' | 'adjustment' | 'loss';
-  quantityBefore: number;
-  quantityChanged: number;
-  quantityAfter: number;
-  note: string;
-  createdAt: Timestamp;
-  createdBy: string;
+  name: string;
+  contactPerson: string;
+  phone: string;
+  categories: string[];
+  createdAt: number;
+}
+
+export interface StockTransfer {
+  id: string;
+  businessId: string;
+  fromBranchId: string;
+  toBranchId: string;
+  items: {
+    productId: string;
+    productName: string;
+    quantity: number;
+  }[];
+  status: TransferStatus;
+  requestedBy: string;
+  approvedBy?: string;
+  createdAt: number;
+}
+
+export interface AuditLog {
+  id: string;
+  businessId: string;
+  branchId?: string;
+  userId: string;
+  userName: string;
+  action: string;
+  resource: string;
+  details: string;
+  timestamp: number;
+}
+
+export interface Announcement {
+  id: string;
+  targetedBusinessTypes: string[];
+  message: string;
+  createdAt: number;
 }
