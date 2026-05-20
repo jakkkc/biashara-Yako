@@ -38,5 +38,9 @@ export default function ProtectedRoute({
     }
   }
 
+  if (profile?.mustChangePassword && location.pathname !== '/set-password') {
+    return <Navigate to="/set-password" replace />;
+  }
+
   return <>{children}</>;
 }

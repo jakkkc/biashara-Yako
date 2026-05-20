@@ -6,11 +6,11 @@ import { useNavigate } from 'react-router-dom';
 
 export default function LoginPage() {
   const [loginType, setLoginType] = useState<'owner' | 'staff'>('owner');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, signInWithEmail } = useAuth();
   const navigate = useNavigate();
 
   const handleGoogleLogin = async () => {
@@ -31,14 +31,14 @@ export default function LoginPage() {
     setIsLoggingIn(true);
     setError('');
     
-    // In a real app, this would query the 'users' collection for matching username/password
-    // and setting a secure session. For this implementation, we will mock the transition
-    // to explain that staff can enter their assigned hub.
-    setTimeout(() => {
-      setError('Staff protocol initiated. Connecting to enterprise hub terminal...');
-      // Navigation would follow successful local query
+    try {
+      await signInWithEmail(email, password);
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError('Staff authentication failed. Verify your email and access cipher.');
+    } finally {
       setIsLoggingIn(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -134,15 +134,15 @@ export default function LoginPage() {
             >
               <form onSubmit={handleStaffLogin} className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Staff Access Key (Name)</label>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Staff Access Identity (Email)</label>
                   <div className="relative">
                     <User className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
                     <input 
-                      type="text" 
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
+                      type="email" 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       className="w-full h-16 pl-14 pr-6 bg-navy border border-slate-800 rounded-2xl focus:border-gold/50 outline-none transition-all text-white font-black uppercase text-sm tracking-widest"
-                      placeholder="e.g. john_doe"
+                      placeholder="e.g. staff@enterprise.com"
                       required
                     />
                   </div>

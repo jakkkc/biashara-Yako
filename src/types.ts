@@ -45,7 +45,9 @@ export interface UserProfile {
   username?: string; // For employees
   displayName: string;
   email?: string; // For owners
+  phone?: string; // Add this
   photoUrl?: string;
+  mustChangePassword?: boolean; // Add this
   lastLogin?: number;
   createdAt: number;
 }

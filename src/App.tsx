@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
+import SetPasswordPage from './pages/auth/SetPasswordPage';
 import RegisterBusinessPage from './pages/auth/RegisterBusinessPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import SuperAdminDashboard from './pages/admin/SuperAdminDashboard';
@@ -15,6 +16,14 @@ export default function App() {
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route 
+            path="/set-password" 
+            element={
+              <ProtectedRoute requireBusiness={false}>
+                <SetPasswordPage />
+              </ProtectedRoute>
+            } 
+          />
           
           {/* Protected Routes */}
           <Route 

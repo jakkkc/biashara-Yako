@@ -17,6 +17,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
   isSuperAdmin: boolean;
   impersonate: (businessId: string | null) => void;
@@ -110,6 +111,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithEmail = async (email: string, pass: string) => {
+    const { signInWithEmailAndPassword } = await import('firebase/auth');
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch (error) {
+       console.error('Email sign-in error:', error);
+       throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -135,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(user?.email || '');
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, logout, isSuperAdmin, impersonate, impersonatedId, switchBranch }}>
+    <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, signInWithEmail, logout, isSuperAdmin, impersonate, impersonatedId, switchBranch }}>
       {children}
     </AuthContext.Provider>
   );
