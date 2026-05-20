@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { 
   ShieldCheck, 
   Smartphone, 
@@ -13,6 +14,28 @@ import {
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else {
+      alert("Initializing PWA manifest... Biashara Yako is ready for installation. Use 'Add to Home Screen' in your browser menu to install if you don't see a prompt.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-navy text-white selection:bg-gold/30 overflow-x-hidden">
@@ -27,7 +50,7 @@ export default function LandingPage() {
         <div className="flex items-center gap-8">
           <button onClick={() => navigate('/login')} className="hidden sm:block text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-gold transition-colors">SignIn</button>
           <button 
-            onClick={() => navigate('/register')}
+            onClick={() => navigate('/register-business')}
             className="px-8 py-3 bg-gold text-navy rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-gold/10 hover:bg-gold-light transition-all"
           >
             Launch Enterprise
@@ -71,15 +94,13 @@ export default function LandingPage() {
               className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
             >
               <button 
-                onClick={() => navigate('/register')}
+                onClick={() => navigate('/register-business')}
                 className="h-16 px-10 bg-gold text-navy rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-2xl shadow-gold/20 hover:bg-gold-light transition-all"
               >
                 Bootstrap Now <ArrowRight size={18} strokeWidth={3} />
               </button>
               <button 
-                onClick={() => {
-                  alert("Initializing PWA manifest... Biashara Yako is ready for installation. Use 'Add to Home Screen' in your browser menu to install.");
-                }}
+                onClick={handleInstall}
                 className="h-16 px-10 bg-navy-muted border border-slate-800 text-slate-300 rounded-2xl font-black text-xs uppercase tracking-widest hover:text-white transition-all flex items-center justify-center gap-3"
               >
                 Download PWA <Smartphone size={18} strokeWidth={2} />
@@ -152,9 +173,7 @@ export default function LandingPage() {
 
          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
             <button 
-              onClick={() => {
-                alert("Biashara Yako Android APK build v2.0.1 is being prepared. Follow the PWA installation guide for immediate access.");
-              }}
+              onClick={handleInstall}
               className="p-10 bg-navy-muted border border-slate-800 rounded-[50px] group hover:border-gold/30 transition-all text-left"
             >
                <div className="w-16 h-16 bg-navy rounded-2xl flex items-center justify-center text-gold mb-8 shadow-inner">
@@ -164,7 +183,7 @@ export default function LandingPage() {
                <p className="text-slate-400 font-medium leading-relaxed">Download Biashara Yako directly to your phone. It functions like a native Android app, giving your staff instant access on the floor.</p>
             </button>
             <button 
-              onClick={() => navigate('/register')}
+              onClick={() => navigate('/register-business')}
               className="p-10 bg-navy-muted border border-slate-800 rounded-[50px] group hover:border-gold/30 transition-all text-left"
             >
                <div className="w-16 h-16 bg-navy rounded-2xl flex items-center justify-center text-gold mb-8 shadow-inner">

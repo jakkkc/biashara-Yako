@@ -5,7 +5,8 @@ import {
   Package, 
   Settings,
   MoreHorizontal,
-  ShieldAlert
+  ShieldAlert,
+  Store
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -37,18 +38,20 @@ export default function BottomNav() {
           to={item.path}
           end={item.path === '/dashboard'}
           className={({ isActive }) => `
-            flex flex-col items-center justify-center gap-1 flex-1 h-full transition-all
+            flex flex-col items-center justify-center gap-1 flex-1 h-full transition-all relative
             ${isActive ? 'text-gold' : 'text-slate-500'}
           `}
         >
-          <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-          <span className="text-[10px] font-black uppercase tracking-tighter">{item.name}</span>
-          {/* Active Indicator */}
-          <NavLink 
-            to={item.path} 
-            end={item.path === '/dashboard'}
-            className={({ isActive }) => isActive ? "absolute bottom-0 w-8 h-1 bg-gold rounded-t-full shadow-[0_0_10px_rgba(234,179,8,0.5)]" : "hidden"}
-          />
+          {({ isActive }) => (
+            <>
+              <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+              <span className="text-[10px] font-black uppercase tracking-tighter">{item.name}</span>
+              {/* Active Indicator */}
+              {isActive && (
+                <div className="absolute bottom-0 w-8 h-1 bg-gold rounded-t-full shadow-[0_0_10px_rgba(234,179,8,0.5)]" />
+              )}
+            </>
+          )}
         </NavLink>
       ))}
       <button className="flex flex-col items-center justify-center gap-1 flex-1 h-full text-slate-500">

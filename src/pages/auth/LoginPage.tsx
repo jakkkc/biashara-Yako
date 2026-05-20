@@ -122,7 +122,7 @@ export default function LoginPage() {
 
               <div className="text-center pt-8 border-t border-slate-800">
                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">New Enterprise?</p>
-                 <button onClick={() => navigate('/register')} className="text-gold font-black text-[10px] uppercase tracking-widest hover:text-white transition-colors underline decoration-gold/30 underline-offset-4">Bootstrap Platform</button>
+                 <button onClick={() => navigate('/register-business')} className="text-gold font-black text-[10px] uppercase tracking-widest hover:text-white transition-colors underline decoration-gold/30 underline-offset-4">Bootstrap Platform</button>
               </div>
             </motion.div>
           ) : (
