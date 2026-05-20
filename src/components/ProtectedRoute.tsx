@@ -3,6 +3,8 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
+import PINLock from './UI/PINLock';
+
 export default function ProtectedRoute({ 
   children, 
   adminOnly = false,
@@ -12,7 +14,7 @@ export default function ProtectedRoute({
   adminOnly?: boolean,
   requireBusiness?: boolean
 }) {
-  const { user, profile, loading, isSuperAdmin } = useAuth();
+  const { user, profile, loading, isSuperAdmin, isLocked, unlock } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -26,22 +28,32 @@ export default function ProtectedRoute({
     );
   }
 
-  if (!user) {
+  // Allow access if we have a profile (either Google owner or Staff session)
+  if (!profile) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (isLocked) {
+    return (
+      <PINLock 
+        onSuccess={unlock} 
+        staffName={profile.displayName} 
+        staffRole={profile.role} 
+      />
+    );
   }
 
   if (adminOnly && !isSuperAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (requireBusiness && !profile && !isSuperAdmin) {
-    // Check if the current route is already registration to avoid loops
+  if (requireBusiness && !profile.businessId && !isSuperAdmin) {
     if (location.pathname !== '/register-business') {
       return <Navigate to="/register-business" replace />;
     }
   }
 
-  if (profile?.mustChangePassword && location.pathname !== '/set-password') {
+  if (profile.mustChangePassword && location.pathname !== '/set-password') {
     return <Navigate to="/set-password" replace />;
   }
 

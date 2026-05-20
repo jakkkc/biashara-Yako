@@ -30,8 +30,8 @@ export default function SetPasswordPage() {
       setError('Passwords do not match.');
       return;
     }
-    if (password.length < 8 || !/\d/.test(password)) {
-      setError('Password must be at least 8 characters and include one number.');
+    if (password.length < 4) {
+      setError('Password must be at least 4 characters.');
       return;
     }
 
@@ -39,19 +39,30 @@ export default function SetPasswordPage() {
     setError('');
 
     try {
-      if (!user) throw new Error('No authenticated user found.');
+      if (!profile) throw new Error('No active profile detected.');
       
-      // 1. Update Auth Password
-      await updatePassword(user, password);
-      
-      // 2. Update Firestore flag
-      await setDoc(doc(db, 'users', user.uid), {
-        mustChangePassword: false
-      }, { merge: true });
+      const { generateSalt, hashPassword } = await import('../../utils/hashPassword');
+
+      if (user && !profile.username) {
+        // Owner Flow (Google Auth)
+        await updatePassword(user, password);
+        await setDoc(doc(db, 'users', user.uid), {
+          mustChangePassword: false
+        }, { merge: true });
+      } else {
+        // Staff Flow (Custom Username Auth)
+        const salt = generateSalt();
+        const passwordHash = await hashPassword(password, salt);
+        
+        await setDoc(doc(db, 'users', profile.id), {
+          passwordHash,
+          salt,
+          mustChangePassword: false
+        }, { merge: true });
+      }
 
       setIsSuccess(true);
       
-      // Wait a bit then navigate
       setTimeout(() => {
         navigate('/dashboard');
       }, 2000);

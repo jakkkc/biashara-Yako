@@ -38,6 +38,7 @@ export default function POSView() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [showMobileCart, setShowMobileCart] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [lastSale, setLastSale] = useState<any | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'M-Pesa'>('Cash');
   const [mpesaRef, setMpesaRef] = useState('');
   const isMobile = useIsMobile();
@@ -157,8 +158,21 @@ export default function POSView() {
         });
       });
 
+      // 3. Create Audit Log
+      const logId = `LOG-${Date.now()}`;
+      batch.set(doc(db, `businesses/${profile.businessId}/auditLogs`, logId), {
+        id: logId,
+        action: 'SALE_COMPLETED',
+        userId: profile.id,
+        userName: profile.displayName,
+        details: `Finalized sale ${saleId} (Total: Ksh ${total}) via ${paymentMethod}`,
+        timestamp: Date.now(),
+        branchId: profile.branchId || 'main'
+      });
+
       await batch.commit();
       
+      setLastSale(saleData);
       setCart([]);
       setShowCheckout(false);
       setMpesaRef('');
@@ -458,6 +472,78 @@ export default function POSView() {
                    >
                       {isProcessing ? <Loader2 className="animate-spin" /> : <>Authorize Sale <CheckCircle2 size={18} /></>}
                    </button>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Receipt / Success Modal */}
+      <AnimatePresence>
+        {lastSale && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="absolute inset-0 bg-navy/90 backdrop-blur-xl"
+             />
+             <motion.div 
+               initial={{ scale: 0.9, opacity: 0 }}
+               animate={{ scale: 1, opacity: 1 }}
+               exit={{ scale: 0.9, opacity: 0 }}
+               className="relative w-full max-w-sm bg-white rounded-[40px] shadow-2xl p-8 lg:p-10 text-navy"
+             >
+                <div className="flex flex-col items-center mb-10">
+                   <div className="w-16 h-16 bg-gold/10 rounded-full flex items-center justify-center mb-6">
+                      <CheckCircle2 className="text-navy w-10 h-10" />
+                   </div>
+                   <h3 className="text-2xl font-black italic tracking-tighter uppercase mb-1">Sale Authenticated</h3>
+                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Transaction Verified by Ledger 4.0</p>
+                </div>
+
+                <div className="space-y-4 border-y border-dashed border-slate-200 py-8 mb-8 font-mono">
+                   <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                      <span>ID: {lastSale.id}</span>
+                      <span>{new Date(lastSale.createdAt).toLocaleTimeString()}</span>
+                   </div>
+                   <div className="space-y-2">
+                      {lastSale.items.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between text-xs">
+                           <span className="font-bold">{item.quantity}x {item.productName}</span>
+                           <span className="font-black">Ksh {item.price * item.quantity}</span>
+                        </div>
+                      ))}
+                   </div>
+                   <div className="flex justify-between border-t border-slate-100 pt-4 text-xl font-black italic">
+                      <span>TOTAL</span>
+                      <span>Ksh {lastSale.total.toLocaleString()}</span>
+                   </div>
+                   <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      <span>PAID VIA</span>
+                      <span className="text-navy">{lastSale.paymentMethod}</span>
+                   </div>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                   <button 
+                     onClick={() => window.print()}
+                     className="w-full h-14 bg-navy text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3"
+                   >
+                      <Printer size={16} /> Print Receipt
+                   </button>
+                   <button 
+                     onClick={() => setLastSale(null)}
+                     className="w-full h-12 text-slate-500 font-bold uppercase text-[10px] tracking-widest hover:text-navy transition-colors"
+                   >
+                      Dismiss Terminal
+                   </button>
+                </div>
+
+                <div className="mt-10 text-center">
+                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mb-2 leading-relaxed">
+                    Thank you for partnering with<br/>
+                    <span className="text-navy">{profile?.businessId ? currentBranchName : 'Biashara Yako Hub'}</span>
+                  </p>
                 </div>
              </motion.div>
           </div>

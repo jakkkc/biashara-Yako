@@ -15,7 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, query, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../hooks/useAuth';
 import { Product, Branch } from '../../../types';
@@ -144,6 +144,67 @@ export default function InventoryView() {
       console.error(error);
     }
   };
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferData, setTransferData] = useState({
+    sourceProduct: null as Product | null,
+    destinationBranchId: '',
+    quantity: 0
+  });
+
+  const handleStockTransfer = async () => {
+    if (!profile?.businessId || !transferData.sourceProduct || !transferData.destinationBranchId) return;
+    if (transferData.quantity <= 0 || transferData.quantity > transferData.sourceProduct.quantity) {
+      alert('Invalid quantity for transfer.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const sourceRef = doc(db, `businesses/${profile.businessId}/inventory`, transferData.sourceProduct.id);
+      
+      // 1. Decrement source
+      await updateDoc(sourceRef, {
+        quantity: transferData.sourceProduct.quantity - transferData.quantity
+      });
+
+      // 2. Find or create destination product by SKU
+      const destQuery = query(
+        collection(db, `businesses/${profile.businessId}/inventory`),
+        where('sku', '==', transferData.sourceProduct.sku),
+        where('branchId', '==', transferData.destinationBranchId)
+      );
+      const destSnap = await getDocs(destQuery);
+
+      if (!destSnap.empty) {
+        const destId = destSnap.docs[0].id;
+        const currentQty = destSnap.docs[0].data().quantity || 0;
+        await updateDoc(doc(db, `businesses/${profile.businessId}/inventory`, destId), {
+          quantity: currentQty + transferData.quantity
+        });
+      } else {
+        const newId = `PRD-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+        const { id, quantity, branchId, createdAt, ...rest } = transferData.sourceProduct;
+        await setDoc(doc(db, `businesses/${profile.businessId}/inventory`, newId), {
+          ...rest,
+          id: newId,
+          quantity: transferData.quantity,
+          branchId: transferData.destinationBranchId,
+          createdAt: Date.now()
+        });
+      }
+
+      // 3. Log transfer (optional but good practice)
+      // await addDoc(collection(db, `businesses/${profile.businessId}/auditLogs`), { ... });
+
+      setShowTransferModal(false);
+      setTransferData({ sourceProduct: null, destinationBranchId: '', quantity: 0 });
+      fetchInventory();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredInventory = inventory.filter(item => 
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -157,10 +218,16 @@ export default function InventoryView() {
           <h1 className="text-3xl font-bold text-white tracking-tight">Inventory Management</h1>
           <p className="text-slate-400">Track, manage and optimize your stock levels.</p>
         </div>
-        <div className="flex gap-3">
-           <button className="px-4 py-2 bg-navy-muted border border-slate-800 rounded-xl text-slate-300 font-bold text-sm hover:text-white transition-all flex items-center gap-2">
-              <Upload size={18} /> Import
-           </button>
+          <div className="flex gap-3">
+             <button 
+               onClick={() => setShowTransferModal(true)}
+               className="px-4 py-2 bg-navy-muted border border-slate-800 rounded-xl text-slate-300 font-bold text-sm hover:text-white transition-all flex items-center gap-2"
+             >
+                <ArrowUpDown size={18} /> Transfer
+             </button>
+             <button className="px-4 py-2 bg-navy-muted border border-slate-800 rounded-xl text-slate-300 font-bold text-sm hover:text-white transition-all flex items-center gap-2">
+                <Upload size={18} /> Import
+             </button>
            <button className="px-4 py-2 bg-navy-muted border border-slate-800 rounded-xl text-slate-300 font-bold text-sm hover:text-white transition-all flex items-center gap-2">
               <Download size={18} /> Export
            </button>
@@ -528,6 +595,89 @@ export default function InventoryView() {
                >
                   {loading ? <Loader2 className="animate-spin" /> : 'Confirm Parameter Sync'}
                </button>
+            </motion.div>
+          </div>
+        )}
+
+        {showTransferModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+               onClick={() => setShowTransferModal(false)}
+               className="absolute inset-0 bg-navy/80 backdrop-blur-md" 
+            />
+            <motion.div 
+               initial={{ opacity: 0, scale: 0.9, y: 20 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.9, y: 20 }}
+               className="relative w-full max-w-lg bg-navy-muted border border-slate-800 rounded-[40px] p-10 shadow-2xl overflow-y-auto max-h-[90vh]"
+            >
+               <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h3 className="text-3xl font-black text-white italic tracking-tighter">Hub Transfer</h3>
+                    <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest mt-1">Redeploying inventory assets across the enterprise</p>
+                  </div>
+                  <button onClick={() => setShowTransferModal(false)} className="w-10 h-10 bg-navy border border-slate-800 rounded-full flex items-center justify-center text-slate-500 hover:text-white transition-colors">
+                     <X size={20} />
+                  </button>
+               </div>
+
+               <div className="space-y-6">
+                  <div>
+                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Asset to Transfer</label>
+                     <select 
+                        value={transferData.sourceProduct?.id || ''}
+                        onChange={(e) => {
+                          const p = inventory.find(i => i.id === e.target.value);
+                          setTransferData({...transferData, sourceProduct: p || null});
+                        }}
+                        className="w-full h-14 px-6 bg-navy border border-slate-800 rounded-2xl text-white outline-none focus:border-gold/50 transition-all font-bold appearance-none"
+                     >
+                        <option value="">Select product from origin...</option>
+                        {inventory.map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} ({p.quantity} available at {branches.find(b => b.id === p.branchId)?.name || 'Unknown'})
+                          </option>
+                        ))}
+                     </select>
+                  </div>
+
+                  <div>
+                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Destination Hub</label>
+                     <select 
+                        value={transferData.destinationBranchId}
+                        onChange={(e) => setTransferData({...transferData, destinationBranchId: e.target.value})}
+                        className="w-full h-14 px-6 bg-navy border border-slate-800 rounded-2xl text-gold outline-none focus:border-gold/50 transition-all font-bold appearance-none"
+                     >
+                        <option value="">Select recipient station...</option>
+                        {branches
+                          .filter(b => b.id !== transferData.sourceProduct?.branchId)
+                          .map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                     </select>
+                  </div>
+
+                  <div>
+                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Quantum for Deployment</label>
+                     <div className="relative">
+                        <input 
+                           type="number" 
+                           value={transferData.quantity}
+                           onChange={(e) => setTransferData({...transferData, quantity: Number(e.target.value)})}
+                           max={transferData.sourceProduct?.quantity || 0}
+                           className="w-full h-16 px-6 bg-navy border border-slate-800 rounded-2xl text-white outline-none focus:border-gold/50 transition-all font-black text-2xl"
+                        />
+                        <span className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-600 font-black text-[10px] uppercase">Max: {transferData.sourceProduct?.quantity || 0}</span>
+                     </div>
+                  </div>
+
+                  <button 
+                     onClick={handleStockTransfer}
+                     disabled={loading || !transferData.sourceProduct || !transferData.destinationBranchId || transferData.quantity <= 0}
+                     className="w-full h-18 bg-gold text-navy rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-gold/10 hover:bg-gold-light transition-all mt-6 disabled:opacity-30 flex items-center justify-center gap-3"
+                  >
+                     {loading ? <Loader2 className="animate-spin" /> : <>Execute Redistribution <ArrowUpDown size={18} strokeWidth={3} /></>}
+                  </button>
+               </div>
             </motion.div>
           </div>
         )}

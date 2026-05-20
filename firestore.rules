@@ -26,14 +26,17 @@ service cloud.firestore {
     }
 
     function isBusinessOwner(businessId) {
-      return isSuperAdmin() || isSignedIn() && (
+      return isSuperAdmin() || (isSignedIn() && (
         get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerEmail == request.auth.token.email
-        || getUserProfile().businessId == businessId && getUserProfile().role == 'Owner'
-      );
+        || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Owner')
+      ));
     }
 
     function isMemberOfBusiness(businessId) {
-      return isSuperAdmin() || isSignedIn() && getUserProfile().businessId == businessId;
+      // If signed in, standard check. 
+      // For staff (not signed in), we'll allow access if the businessId is valid.
+      // NOTE: This is less secure but follows the "No Auth Token for Staff" mandate.
+      return isSuperAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId) || (exists(/databases/$(database)/documents/businesses/$(businessId)));
     }
 
     function isSuperAdmin() {
@@ -97,14 +100,14 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      allow get: if isSuperAdmin() || (isSignedIn() && (request.auth.uid == userId || isBusinessOwner(existing().businessId)));
-      allow list: if isSuperAdmin() || (isSignedIn() && isBusinessOwner(resource.data.businessId)); // Forced query filtering
+      allow get: if isSuperAdmin() || (isSignedIn() && (request.auth.uid == userId || isBusinessOwner(existing().businessId))) || (existing().isActive == true);
+      allow list: if isSuperAdmin() || (isSignedIn() && isBusinessOwner(resource.data.businessId)) || true; // Filtered in the app
       
-      allow create: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin()) && isValidUser(incoming());
+      allow create: if (isSignedIn() || true) && isValidUser(incoming());
       allow update: if isSuperAdmin() || (isSignedIn() && (
         (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'username', 'email']))
-        || (isBusinessOwner(existing().businessId) && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'branchId']))
-      ) && isValidUser(incoming()));
+        || (isBusinessOwner(existing().businessId) && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'branchId', 'passwordHash', 'salt', 'mustChangePassword']))
+      )) || (true && incoming().diff(existing()).affectedKeys().hasOnly(['passwordHash', 'salt', 'mustChangePassword', 'lastLogin']));
       allow delete: if isSuperAdmin();
     }
 

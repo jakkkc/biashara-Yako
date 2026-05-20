@@ -13,7 +13,8 @@ import {
   TrendingUp,
   FileText,
   BadgeCent,
-  ShieldAlert
+  ShieldAlert,
+  Clock
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
@@ -42,6 +43,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     { name: 'Expense Matrix', icon: BadgeCent, path: '/dashboard/expenses' },
     { name: 'Personnel', icon: Users, path: '/dashboard/users' },
     { name: 'Intelligence', icon: TrendingUp, path: '/dashboard/reports' },
+    { name: 'Shifts', icon: Clock, path: '/dashboard/shifts' },
     { name: 'Settings', icon: Settings, path: '/dashboard/settings' },
   );
 
