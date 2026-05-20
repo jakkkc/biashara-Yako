@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy: #020617;
+  --color-navy-muted: #0f172a;
+  --color-slate-800: #1e293b;
+  --color-gold: #eab308;
+  --color-gold-muted: rgba(234, 179, 8, 0.1);
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-[#020617] text-slate-200;
+  }
+}

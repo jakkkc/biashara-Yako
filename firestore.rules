@@ -1,0 +1,158 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // -------------------------------------------------------------------------
+    // 1. GLOBAL HELPERS
+    // -------------------------------------------------------------------------
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function getUserProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isBusinessOwner(businessId) {
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerEmail == request.auth.token.email
+        || getUserProfile().businessId == businessId && getUserProfile().role == 'Owner'
+      );
+    }
+
+    function isMemberOfBusiness(businessId) {
+      return isSignedIn() && getUserProfile().businessId == businessId;
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. VALIDATION HELPERS
+    // -------------------------------------------------------------------------
+
+    function isValidBusiness(data) {
+      return data.keys().hasAll(['name', 'type', 'ownerEmail', 'status', 'createdAt'])
+        && data.name is string && data.name.size() <= 100
+        && data.type is string
+        && data.ownerEmail is string
+        && data.status in ['active', 'suspended']
+        && data.createdAt is number;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['businessId', 'role', 'displayName', 'createdAt'])
+        && data.businessId is string && isValidId(data.businessId)
+        && data.role is string
+        && data.displayName is string && data.displayName.size() <= 100
+        && data.createdAt is number;
+    }
+
+    function isValidInventory(data) {
+      return data.keys().hasAll(['businessId', 'name', 'price', 'stock'])
+        && data.businessId is string && isValidId(data.businessId)
+        && data.name is string && data.name.size() <= 200
+        && data.price is number && data.price >= 0
+        && data.stock is number;
+    }
+
+    function isValidSale(data) {
+      return data.keys().hasAll(['businessId', 'total', 'items', 'status', 'createdAt'])
+        && data.businessId is string && isValidId(data.businessId)
+        && data.total is number && data.total >= 0
+        && data.items is list && data.items.size() <= 100
+        && data.status in ['completed', 'pending', 'refunded']
+        && data.createdAt is number;
+    }
+
+    function isValidExpense(data) {
+      return data.keys().hasAll(['businessId', 'amount', 'description', 'createdAt'])
+        && data.businessId is string && isValidId(data.businessId)
+        && data.amount is number && data.amount >= 0
+        && data.description is string && data.description.size() <= 500
+        && data.createdAt is number;
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. SECURITY RULES
+    // -------------------------------------------------------------------------
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isBusinessOwner(existing().businessId));
+      allow list: if isSignedIn() && isBusinessOwner(resource.data.businessId); // Forced query filtering
+      
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
+      allow update: if isSignedIn() && (
+        (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'username', 'email']))
+        || (isBusinessOwner(existing().businessId) && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'branchId']))
+      ) && isValidUser(incoming());
+    }
+
+    // Businesses collection
+    match /businesses/{businessId} {
+      allow get: if isSignedIn() && (isMemberOfBusiness(businessId) || existing().ownerEmail == request.auth.token.email);
+      allow list: if false; 
+      
+      allow create: if isSignedIn() && isValidId(businessId) && isValidBusiness(incoming()) 
+        && incoming().ownerEmail == request.auth.token.email
+        && incoming().createdAt == request.time;
+      
+      allow update: if isSignedIn() && isBusinessOwner(businessId) && isValidBusiness(incoming())
+        && incoming().ownerEmail == existing().ownerEmail // Immortal
+        && incoming().createdAt == existing().createdAt; // Immortal
+      
+      // Subcollections
+      match /branches/{branchId} {
+        allow read: if isMemberOfBusiness(businessId);
+        allow create: if isBusinessOwner(businessId) && isValidId(branchId);
+        allow update: if isBusinessOwner(businessId);
+      }
+
+      match /inventory/{itemId} {
+        allow read: if isMemberOfBusiness(businessId);
+        allow create: if isMemberOfBusiness(businessId) && isValidId(itemId) && isValidInventory(incoming())
+          && incoming().businessId == businessId;
+        allow update: if isMemberOfBusiness(businessId) && isValidInventory(incoming())
+          && incoming().businessId == existing().businessId;
+        allow delete: if isBusinessOwner(businessId);
+      }
+
+      match /sales/{saleId} {
+        allow read: if isMemberOfBusiness(businessId);
+        allow create: if isMemberOfBusiness(businessId) && isValidId(saleId) && isValidSale(incoming())
+          && incoming().businessId == businessId
+          && incoming().createdAt == request.time;
+        allow update: if isMemberOfBusiness(businessId) && isValidSale(incoming())
+          && incoming().businessId == existing().businessId
+          && incoming().createdAt == existing().createdAt
+          && (existing().status != 'completed' || isBusinessOwner(businessId));
+      }
+
+      match /expenses/{expenseId} {
+        allow read: if isMemberOfBusiness(businessId);
+        allow create: if isMemberOfBusiness(businessId) && isValidId(expenseId) && isValidExpense(incoming())
+          && incoming().businessId == businessId
+          && incoming().createdAt == request.time;
+        allow update: if isBusinessOwner(businessId) && isValidExpense(incoming())
+          && incoming().businessId == existing().businessId
+          && incoming().createdAt == existing().createdAt;
+        allow delete: if isBusinessOwner(businessId);
+      }
+    }
+  }
+}
