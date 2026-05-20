@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Search, 
   Plus, 
@@ -13,44 +13,68 @@ import {
   Printer,
   ChevronRight,
   ShoppingCart,
-  Package
+  Package,
+  Loader2,
+  ArrowRight,
+  CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useIsMobile } from '../../../hooks/useIsMobile';
+import { collection, query, getDocs, doc, setDoc, writeBatch, increment } from 'firebase/firestore';
+import { db } from '../../../lib/firebase';
+import { useAuth } from '../../../hooks/useAuth';
+import { Product, Sale } from '../../../types';
 
-const categories = ['All', 'Beverages', 'Flour', 'Sugar', 'Oil', 'Hygiene', 'Snacks'];
-
-const demoProducts = [
-  { id: '1', name: 'Fresh Milk 500ml', price: 120, category: 'Beverages', stock: 45 },
-  { id: '2', name: 'Ajab Flour 2kg', price: 180, category: 'Flour', stock: 12 },
-  { id: '3', name: 'Kabras Sugar 1kg', price: 155, category: 'Sugar', stock: 30 },
-  { id: '4', name: 'Cooking Oil 1L', price: 230, category: 'Oil', stock: 8 },
-  { id: '5', name: 'Geisha Soap', price: 85, category: 'Hygiene', stock: 55 },
-  { id: '6', name: 'Coca Cola 500ml', price: 70, category: 'Beverages', stock: 100 },
-];
+const categories = ['All', 'Retail', 'Beverages', 'Agrovet', 'Hygiene', 'Food', 'Other'];
 
 export default function POSView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showMobileCart, setShowMobileCart] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'M-Pesa'>('Cash');
+  const [mpesaRef, setMpesaRef] = useState('');
   const isMobile = useIsMobile();
+  const { profile } = useAuth();
+
+  useEffect(() => {
+    if (profile?.businessId) {
+      fetchProducts();
+    }
+  }, [profile?.businessId]);
+
+  const fetchProducts = async () => {
+    setLoading(true);
+    try {
+      const q = query(collection(db, `businesses/${profile?.businessId}/inventory`));
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      setProducts(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredProducts = useMemo(() => {
-    return demoProducts.filter(p => 
+    return products.filter(p => 
       (activeCategory === 'All' || p.category === activeCategory) &&
       p.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm, activeCategory]);
+  }, [searchTerm, activeCategory, products]);
 
-  const addToCart = (product: any) => {
+  const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
         return prev.map(item => item.id === product.id ? { ...item, qty: item.qty + 1 } : item);
       }
-      return [...prev, { ...product, qty: 1 }];
+      return [...prev, { ...product, qty: 1, price: product.sellingPrice }];
     });
   };
 
@@ -66,6 +90,63 @@ export default function POSView() {
 
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
   const total = subtotal;
+
+  const handleCompleteSale = async () => {
+    if (!profile?.businessId || cart.length === 0) return;
+    setIsProcessing(true);
+    
+    const saleId = `SALE-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+    const batch = writeBatch(db);
+
+    const saleData = {
+      id: saleId,
+      businessId: profile.businessId,
+      branchId: profile.branchId || 'main',
+      userId: profile.id,
+      userName: profile.displayName,
+      items: cart.map(item => ({
+        productId: item.id,
+        productName: item.name,
+        quantity: item.qty,
+        price: item.price,
+        discount: 0
+      })),
+      subtotal,
+      vatAmount: 0,
+      discountTotal: 0,
+      total,
+      paymentMethod,
+      mpesaReference: paymentMethod === 'M-Pesa' ? mpesaRef : undefined,
+      status: 'completed',
+      createdAt: Date.now()
+    };
+
+    try {
+      // 1. Save Sale
+      batch.set(doc(db, `businesses/${profile.businessId}/sales`, saleId), saleData);
+
+      // 2. Update Stock Levels
+      cart.forEach(item => {
+        const productRef = doc(db, `businesses/${profile.businessId}/inventory`, item.id);
+        batch.update(productRef, {
+          quantity: increment(-item.qty)
+        });
+      });
+
+      await batch.commit();
+      
+      setCart([]);
+      setShowCheckout(false);
+      setMpesaRef('');
+      fetchProducts(); // Refresh stock in UI
+      alert('Transaction finalized successfully.');
+    } catch (error) {
+      console.error(error);
+      alert('System failure during transaction finalization.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const CartUI = () => (
     <div className="flex flex-col h-full overflow-hidden">
@@ -184,7 +265,12 @@ export default function POSView() {
         </div>
 
         <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6 pb-20 lg:pb-4 scrollbar-thin scrollbar-thumb-slate-800">
-           {filteredProducts.map(product => (
+           {loading ? (
+              <div className="col-span-full py-20 flex flex-col items-center justify-center gap-4">
+                 <Loader2 className="animate-spin text-gold w-10 h-10" />
+                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Manifesting inventory...</p>
+              </div>
+           ) : filteredProducts.map(product => (
              <motion.button 
                key={product.id}
                whileTap={{ scale: 0.98 }}
@@ -199,12 +285,12 @@ export default function POSView() {
                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">{product.category}</p>
                    <h3 className="font-bold text-white mb-1.5 text-sm lg:text-base line-clamp-2 tracking-tight">{product.name}</h3>
                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Stock: {product.stock}</p>
+                      <div className={`w-1.5 h-1.5 rounded-full ${product.quantity > product.reorderLevel ? 'bg-green-500' : 'bg-red-500'}`} />
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Stock: {product.quantity}</p>
                    </div>
                 </div>
                 <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-800/50 relative z-10">
-                   <span className="font-black text-white text-base lg:text-lg tracking-tight">Ksh {product.price}</span>
+                   <span className="font-black text-white text-base lg:text-lg tracking-tight">Ksh {product.sellingPrice}</span>
                    <div className="w-9 h-9 bg-navy border border-slate-800 rounded-xl flex items-center justify-center text-gold shadow-lg group-hover:bg-gold group-hover:text-navy group-hover:border-gold transition-all">
                       <Plus size={18} strokeWidth={3} />
                    </div>
@@ -297,36 +383,50 @@ export default function POSView() {
 
                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-5 ml-1 text-center lg:text-left">Select Payment System</p>
                    <div className="grid grid-cols-2 gap-5 mb-10">
-                      <button className="p-6 lg:p-8 border border-slate-800 hover:border-gold/30 rounded-[32px] flex flex-col items-center gap-4 transition-all group bg-navy/30">
-                         <div className="w-12 h-12 lg:w-16 lg:h-16 bg-slate-800/30 rounded-2xl flex items-center justify-center group-hover:bg-gold/10 group-hover:text-gold transition-all text-slate-600 border border-transparent group-hover:border-gold/20">
+                      <button 
+                         onClick={() => setPaymentMethod('Cash')}
+                         className={`p-6 lg:p-8 border rounded-[32px] flex flex-col items-center gap-4 transition-all group ${paymentMethod === 'Cash' ? 'border-gold bg-gold/5 shadow-[0_0_40px_rgba(234,179,8,0.05)]' : 'border-slate-800 bg-navy/30 hover:border-gold/30'}`}
+                      >
+                         <div className={`w-12 h-12 lg:w-16 lg:h-16 rounded-2xl flex items-center justify-center transition-all ${paymentMethod === 'Cash' ? 'bg-gold text-navy shadow-lg shadow-gold/20' : 'bg-slate-800/30 text-slate-600'}`}>
                            <Banknote className="w-6 h-6 lg:w-8 lg:h-8" />
                          </div>
-                         <span className="font-bold text-[10px] lg:text-xs uppercase tracking-widest text-slate-400 group-hover:text-white">Cash Only</span>
+                         <span className={`font-bold text-[10px] lg:text-xs uppercase tracking-widest ${paymentMethod === 'Cash' ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>Cash Only</span>
                       </button>
-                      <button className="p-6 lg:p-8 border-2 border-gold rounded-[32px] flex flex-col items-center gap-4 bg-gold/5 transition-all group shadow-[0_0_40px_rgba(234,179,8,0.05)]">
-                         <div className="w-12 h-12 lg:w-16 lg:h-16 bg-gold rounded-2xl flex items-center justify-center text-navy shadow-lg shadow-gold/20">
+                      <button 
+                         onClick={() => setPaymentMethod('M-Pesa')}
+                         className={`p-6 lg:p-8 border rounded-[32px] flex flex-col items-center gap-4 transition-all group ${paymentMethod === 'M-Pesa' ? 'border-gold bg-gold/5 shadow-[0_0_40px_rgba(234,179,8,0.05)]' : 'border-slate-800 bg-navy/30 hover:border-gold/30'}`}
+                      >
+                         <div className={`w-12 h-12 lg:w-16 lg:h-16 rounded-2xl flex items-center justify-center transition-all ${paymentMethod === 'M-Pesa' ? 'bg-gold text-navy shadow-lg shadow-gold/20' : 'bg-slate-800/30 text-slate-600'}`}>
                            <Smartphone className="w-6 h-6 lg:w-8 lg:h-8" strokeWidth={2.5} />
                          </div>
-                         <span className="font-bold text-[10px] lg:text-xs uppercase tracking-widest text-white">M-Pesa Express</span>
+                         <span className={`font-bold text-[10px] lg:text-xs uppercase tracking-widest ${paymentMethod === 'M-Pesa' ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>M-Pesa Express</span>
                       </button>
                    </div>
 
-                   <div className="space-y-4">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] ml-1">Confirmation Details (Reference)</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. QXRT0..." 
-                        className="w-full h-16 px-6 bg-navy border border-slate-800 focus:border-gold/50 rounded-2xl font-mono uppercase focus:ring-4 focus:ring-gold/5 outline-none text-white text-xl tracking-widest transition-all"
-                      />
-                   </div>
+                   {paymentMethod === 'M-Pesa' && (
+                     <div className="space-y-4 animate-in slide-in-from-top-4 duration-500">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] ml-1">Confirmation Details (Reference)</label>
+                        <input 
+                          type="text" 
+                          value={mpesaRef}
+                          onChange={(e) => setMpesaRef(e.target.value)}
+                          placeholder="e.g. QXRT0..." 
+                          className="w-full h-16 px-6 bg-navy border border-slate-800 focus:border-gold/50 rounded-2xl font-mono uppercase focus:ring-4 focus:ring-gold/5 outline-none text-white text-xl tracking-widest transition-all"
+                        />
+                     </div>
+                   )}
                 </div>
 
                 <div className="p-8 lg:p-10 bg-slate-900/40 border-t border-slate-800 flex flex-col lg:flex-row gap-4 shrink-0">
                    <button className="flex-1 h-14 lg:h-16 bg-navy-muted border border-slate-800 rounded-2xl font-bold text-slate-400 hover:text-white hover:border-slate-700 transition-all flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest">
                       <Printer size={20} className="text-gold" /> Print Bill
                    </button>
-                   <button className="flex-1 h-14 lg:h-16 bg-gold text-navy rounded-2xl font-black text-sm tracking-widest hover:bg-gold-light transition-all shadow-xl shadow-gold/10 uppercase">
-                      Confirm Sale
+                   <button 
+                     onClick={handleCompleteSale}
+                     disabled={isProcessing || (paymentMethod === 'M-Pesa' && !mpesaRef)}
+                     className="flex-[2] h-14 lg:h-16 bg-gold text-navy rounded-2xl font-black text-sm tracking-widest hover:bg-gold-light transition-all shadow-xl shadow-gold/10 uppercase flex items-center justify-center gap-3 disabled:opacity-30"
+                   >
+                      {isProcessing ? <Loader2 className="animate-spin" /> : <>Authorize Sale <CheckCircle2 size={18} /></>}
                    </button>
                 </div>
              </motion.div>

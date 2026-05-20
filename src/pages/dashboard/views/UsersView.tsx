@@ -11,7 +11,7 @@ import {
   Lock,
   User
 } from 'lucide-react';
-import { collection, query, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, getDocs, doc, setDoc, deleteDoc, where } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../hooks/useAuth';
 import { motion, AnimatePresence } from 'motion/react';
@@ -39,15 +39,17 @@ export default function UsersView() {
   }, [profile?.businessId]);
 
   const fetchUsers = async () => {
+    if (!profile?.businessId) return;
     try {
-      const q = query(collection(db, 'users')); // In a real app, filter by businessId
+      const q = query(
+        collection(db, 'users'), 
+        where('businessId', '==', profile.businessId)
+      );
       const snapshot = await getDocs(q);
-      const data = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as UserProfile))
-        .filter(u => u.businessId === profile?.businessId);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
       setUsers(data);
     } catch (error) {
-      console.error(error);
+      console.error('Error fetching users:', error);
     }
   };
 

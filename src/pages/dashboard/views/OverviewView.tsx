@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   TrendingUp, 
@@ -12,7 +13,8 @@ import {
   Store,
   DollarSign,
   Users,
-  BarChart3
+  BarChart3,
+  Loader2
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -28,27 +30,81 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-
-const dummySalesData = [
-  { name: 'Mon', sales: 4000, expenses: 2400 },
-  { name: 'Tue', sales: 3000, expenses: 1398 },
-  { name: 'Wed', sales: 2000, expenses: 9800 },
-  { name: 'Thu', sales: 2780, expenses: 3908 },
-  { name: 'Fri', sales: 1890, expenses: 4800 },
-  { name: 'Sat', sales: 2390, expenses: 3800 },
-  { name: 'Sun', sales: 3490, expenses: 4300 },
-];
-
-const branchPerformance = [
-  { name: 'Nairobi CBD', sales: 450000, color: '#eab308' },
-  { name: 'Westlands', sales: 280000, color: '#334155' },
-  { name: 'Mombasa Rd', sales: 340000, color: '#475569' },
-  { name: 'Kisumu Hub', sales: 190000, color: '#1e293b' },
-];
+import { collection, query, getDocs, limit, orderBy } from 'firebase/firestore';
+import { db } from '../../../lib/firebase';
+import { useAuth } from '../../../hooks/useAuth';
+import { Sale, Branch, Product, UserProfile } from '../../../types';
 
 const COLORS = ['#eab308', '#334155', '#475569', '#1e293b'];
 
 export default function OverviewView() {
+  const [stats, setStats] = useState({
+    revenue: 0,
+    hubs: 0,
+    staff: 0,
+    inventory: 0
+  });
+  const [salesByBranch, setSalesByBranch] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { profile } = useAuth();
+
+  useEffect(() => {
+    if (profile?.businessId) {
+      fetchDashboardData();
+    }
+  }, [profile?.businessId]);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const bizId = profile?.businessId;
+      
+      // 1. Fetch Sales
+      const salesSnap = await getDocs(query(collection(db, `businesses/${bizId}/sales`), limit(500)));
+      const sales = salesSnap.docs.map(d => d.data() as Sale);
+      const totalRevenue = sales.reduce((acc, s) => acc + s.total, 0);
+
+      // 2. Fetch Branches
+      const branchesSnap = await getDocs(collection(db, `businesses/${bizId}/branches`));
+      const hubsCount = branchesSnap.size;
+      const branches = branchesSnap.docs.map(d => d.data() as Branch);
+
+      // 3. Fetch Staff
+      // Note: This requires the fixed query from UsersView logic if we wanted filtering, 
+      // but for dashboard stats, we can fetch all business users
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const staffCount = usersSnap.docs.filter(d => d.data().businessId === bizId).length;
+
+      // 4. Group Sales by Branch for Chart
+      const branchPerformance = branches.map(b => {
+        const branchSales = sales.filter(s => s.branchId === b.id).reduce((acc, s) => acc + s.total, 0);
+        return { name: b.name, sales: branchSales };
+      });
+
+      setStats({
+        revenue: totalRevenue,
+        hubs: hubsCount,
+        staff: staffCount,
+        inventory: 0 // Could fetch inventory too if needed
+      });
+      setSalesByBranch(branchPerformance.length > 0 ? branchPerformance : [{ name: 'N/A', sales: 0 }]);
+
+    } catch (error) {
+      console.error('Dashboard Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
+         <Loader2 className="animate-spin text-gold w-10 h-10" />
+         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest tracking-[0.2em]">Synchronizing matrix peripherals...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-12 animate-in fade-in duration-500 pb-20">
       {/* Header */}
@@ -65,10 +121,10 @@ export default function OverviewView() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-        <StatCard title="Global Revenue" value="KES 1.2M" change="+12.5%" positive={true} icon={DollarSign} trend="up" />
-        <StatCard title="Active Hubs" value="4 Branches" change="+1 Hub" positive={true} icon={Store} trend="up" color="gold" />
-        <StatCard title="Staff Strength" value="12 Active" change="+2 Staff" positive={true} icon={Users} trend="up" />
-        <StatCard title="Growth Vector" value="+24.3%" change="+2.1%" positive={true} icon={TrendingUp} trend="up" />
+        <StatCard title="Global Revenue" value={`KES ${stats.revenue.toLocaleString()}`} change={stats.revenue > 0 ? "+NEW" : "0%"} positive={true} icon={DollarSign} trend="up" />
+        <StatCard title="Active Hubs" value={`${stats.hubs} Branches`} icon={Store} trend="up" color="gold" />
+        <StatCard title="Staff Strength" value={`${stats.staff} Active`} icon={Users} trend="up" />
+        <StatCard title="Growth Vector" value={stats.revenue > 0 ? "LIVE" : "IDLE"} icon={TrendingUp} trend="up" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -85,7 +141,7 @@ export default function OverviewView() {
           
           <div className="h-80 w-full relative z-10">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={branchPerformance}>
+              <BarChart data={salesByBranch}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
                 <XAxis 
                   dataKey="name" 
@@ -101,7 +157,7 @@ export default function OverviewView() {
                    itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 'bold' }}
                 />
                 <Bar dataKey="sales" radius={[12, 12, 0, 0]} barSize={50}>
-                  {branchPerformance.map((entry, index) => (
+                  {salesByBranch.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Bar>
@@ -114,48 +170,18 @@ export default function OverviewView() {
         <div className="bg-navy-muted p-10 rounded-[40px] border border-slate-800 shadow-2xl flex flex-col relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/5 blur-[80px] -mr-24 -mt-24" />
           <h3 className="text-2xl font-black text-white italic tracking-tighter mb-2 relative z-10">Revenue Mix</h3>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-12 relative z-10">Sector Portfolio Distribution</p>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-12 relative z-10">Consortium Overview</p>
           
-          <div className="h-[240px] w-full relative z-10">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'Retail', value: 450 },
-                    { name: 'Wholesale', value: 300 },
-                    { name: 'Agrovet', value: 250 },
-                  ]}
-                  innerRadius={70}
-                  outerRadius={100}
-                  paddingAngle={10}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {COLORS.map((color, index) => (
-                    <Cell key={`cell-${index}`} fill={color} cornerRadius={12} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                   contentStyle={{ backgroundColor: '#000B1A', borderRadius: '16px', border: '1px solid #1e293b' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="h-24 flex items-center justify-center">
+             <Store size={48} className="text-gold/30 animate-pulse" />
           </div>
 
-          <div className="mt-8 space-y-4 relative z-10">
-             {[
-               { label: 'Retail Operations', color: 'bg-gold', value: '45%' },
-               { label: 'Bulk Wholesale', color: 'bg-slate-700', value: '30%' },
-               { label: 'Specialized (Agro)', color: 'bg-slate-800', value: '25%' }
-             ].map((item, idx) => (
-               <div key={idx} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                     <div className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
-                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.label}</span>
-                  </div>
-                  <span className="text-[10px] font-black text-white tracking-widest">{item.value}</span>
-               </div>
-             ))}
+          <div className="mt-auto space-y-4 relative z-10">
+             <div className="p-6 rounded-[32px] bg-gold/5 border border-gold/10">
+                <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase tracking-widest text-center">
+                  Consolidated enterprise metrics are updated in real-time across the secure network. 
+                </p>
+             </div>
           </div>
         </div>
       </div>

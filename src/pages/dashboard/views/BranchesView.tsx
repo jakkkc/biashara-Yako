@@ -54,7 +54,7 @@ export default function BranchesView() {
         id,
         businessId: profile.businessId,
         createdAt: Date.now(),
-        isActive: true
+        active: true
       });
       setIsAdding(false);
       fetchBranches();
