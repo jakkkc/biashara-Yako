@@ -45,13 +45,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubscribeProfile: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = null;
+      }
+
       if (user) {
-        // Fetch profile
-        const path = `users/${user.uid}`;
-        try {
-          const profileDoc = await getDoc(doc(db, 'users', user.uid));
+        // Listen to profile changes in real-time
+        const { onSnapshot } = await import('firebase/firestore');
+        unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), (profileDoc) => {
           if (profileDoc.exists()) {
             let data = profileDoc.data() as UserProfile;
             
@@ -60,45 +67,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               data = {
                 ...data,
                 businessId: impersonatedId,
-                role: 'Owner' // Force owner role when impersonating
+                role: 'Owner'
               };
             }
             setProfile(data);
           } else if (SUPER_ADMIN_EMAILS.includes(user.email || '')) {
-            // Super Admin might not have a profile, create a dummy one if impersonating
-            if (impersonatedId) {
-              setProfile({
-                id: user.uid,
-                businessId: impersonatedId,
-                role: 'Owner',
-                displayName: user.displayName || 'Super Admin',
-                email: user.email,
-                createdAt: Date.now()
-              });
-            } else {
-              setProfile({
-                id: user.uid,
-                businessId: '',
-                role: 'SuperAdmin' as any,
-                displayName: user.displayName || 'Platform Owner',
-                email: user.email,
-                createdAt: Date.now()
-              });
-            }
+            // Super Admin dummy profile logic
+            setProfile({
+              id: user.uid,
+              businessId: impersonatedId || '',
+              role: (impersonatedId ? 'Owner' : 'SuperAdmin') as any,
+              displayName: user.displayName || (impersonatedId ? 'Super Admin' : 'Platform Owner'),
+              email: user.email,
+              createdAt: Date.now()
+            });
           } else {
-            // New user, trigger registration check if owner
             setProfile(null);
           }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.GET, path);
-        }
+          setLoading(false);
+        }, (error) => {
+          console.error('Snapshot error:', error);
+          setLoading(false);
+        });
       } else {
         setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, [impersonatedId]);
 
   const signInWithGoogle = async () => {

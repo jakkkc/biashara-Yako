@@ -17,8 +17,11 @@ export default function ProtectedRoute({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="animate-spin text-navy w-10 h-10" />
+      <div className="min-h-screen flex items-center justify-center bg-navy">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="animate-spin text-gold w-12 h-12" />
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] animate-pulse">Initializing Interface...</p>
+        </div>
       </div>
     );
   }
