@@ -1,165 +1,136 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // -------------------------------------------------------------------------
-    // 1. GLOBAL HELPERS
-    // -------------------------------------------------------------------------
-    
-    function isSignedIn() {
-      return request.auth != null;
-    }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    function getUserProfile() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function isBusinessOwner(businessId) {
-      return isSuperAdmin() || (isSignedIn() && (
-        get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerEmail == request.auth.token.email
-        || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Owner')
-      ));
-    }
-
-    function isMemberOfBusiness(businessId) {
-      // If signed in, standard check. 
-      // For staff (not signed in), we'll allow access if the businessId is valid.
-      // NOTE: This is less secure but follows the "No Auth Token for Staff" mandate.
-      return isSuperAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId) || (exists(/databases/$(database)/documents/businesses/$(businessId)));
-    }
-
-    function isSuperAdmin() {
-      return isSignedIn() && request.auth.token.email == 'jacmwaniki@gmail.com';
-    }
-
-    // -------------------------------------------------------------------------
-    // 2. VALIDATION HELPERS
-    // -------------------------------------------------------------------------
-
-    function isValidBusiness(data) {
-      return data.keys().hasAll(['name', 'type', 'ownerEmail', 'status', 'createdAt'])
-        && data.name is string && data.name.size() <= 100
-        && data.type is string
-        && data.ownerEmail is string
-        && data.status in ['active', 'suspended']
-        && data.createdAt is number;
-    }
-
-    function isValidUser(data) {
-      return data.keys().hasAll(['businessId', 'role', 'displayName', 'createdAt'])
-        && data.businessId is string && isValidId(data.businessId)
-        && data.role is string
-        && data.displayName is string && data.displayName.size() <= 100
-        && data.createdAt is number;
-    }
-
-    function isValidInventory(data) {
-      return data.keys().hasAll(['businessId', 'name', 'price', 'stock'])
-        && data.businessId is string && isValidId(data.businessId)
-        && data.name is string && data.name.size() <= 200
-        && data.price is number && data.price >= 0
-        && data.stock is number;
-    }
-
-    function isValidSale(data) {
-      return data.keys().hasAll(['businessId', 'total', 'items', 'status', 'createdAt'])
-        && data.businessId is string && isValidId(data.businessId)
-        && data.total is number && data.total >= 0
-        && data.items is list && data.items.size() <= 100
-        && data.status in ['completed', 'pending', 'refunded']
-        && data.createdAt is number;
-    }
-
-    function isValidExpense(data) {
-      return data.keys().hasAll(['businessId', 'amount', 'description', 'createdAt'])
-        && data.businessId is string && isValidId(data.businessId)
-        && data.amount is number && data.amount >= 0
-        && data.description is string && data.description.size() <= 500
-        && data.createdAt is number;
-    }
-
-    // -------------------------------------------------------------------------
-    // 3. SECURITY RULES
-    // -------------------------------------------------------------------------
-
-    // Default deny
+    // Global Safety Net default deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Users collection
-    match /users/{userId} {
-      allow get: if isSuperAdmin() || (isSignedIn() && (request.auth.uid == userId || isBusinessOwner(existing().businessId))) || (existing().isActive == true);
-      allow list: if isSuperAdmin() || (isSignedIn() && isBusinessOwner(resource.data.businessId)) || true; // Filtered in the app
-      
-      allow create: if (isSignedIn() || true) && isValidUser(incoming());
-      allow update: if isSuperAdmin() || (isSignedIn() && (
-        (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'username', 'email']))
-        || (isBusinessOwner(existing().businessId) && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'branchId', 'passwordHash', 'salt', 'mustChangePassword']))
-      )) || (true && incoming().diff(existing()).affectedKeys().hasOnly(['passwordHash', 'salt', 'mustChangePassword', 'lastLogin']));
-      allow delete: if isSuperAdmin();
+    // Super admin has full access
+    function isSuperAdmin() {
+      return request.auth != null &&
+        request.auth.token.email == 'jacmwaniki@gmail.com';
     }
 
-    // Businesses collection
+    // User is authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Get user profile
+    function userProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // User belongs to this business
+    function ownsBusiness(businessId) {
+      return isAuth() && userProfile().businessId == businessId;
+    }
+
+    // User has role
+    function hasRole(role) {
+      return isAuth() && userProfile().role == role;
+    }
+
+    // Feedback: anyone can create
+    match /feedback/{id} {
+      allow create: if true;
+      allow read, update, delete: if isSuperAdmin();
+    }
+
+    // Announcements: super admin only
+    match /announcements/{id} {
+      allow read: if isAuth();
+      allow write: if isSuperAdmin();
+    }
+
+    // Businesses: super admin full, owner reads/writes own
     match /businesses/{businessId} {
-      allow get: if isSuperAdmin() || (isSignedIn() && (isMemberOfBusiness(businessId) || existing().ownerEmail == request.auth.token.email));
-      allow list: if isSuperAdmin(); 
-      
-      allow create: if isSignedIn() && isValidId(businessId) && isValidBusiness(incoming()) 
-        && (incoming().ownerEmail == request.auth.token.email || isSuperAdmin());
-      
-      allow update: if isSuperAdmin() || (isSignedIn() && isBusinessOwner(businessId) && isValidBusiness(incoming())
-        && incoming().ownerEmail == existing().ownerEmail // Immortal
-        && incoming().createdAt == existing().createdAt); // Immortal
+      allow read, write: if isSuperAdmin();
+      allow read: if ownsBusiness(businessId);
+      allow update: if ownsBusiness(businessId) && hasRole('Owner');
+      allow create: if isAuth() &&
+        request.resource.data.ownerUid == request.auth.uid;
 
-      allow delete: if isSuperAdmin();
-      
-      // Subcollections
+      // Branches
       match /branches/{branchId} {
-        allow read: if isMemberOfBusiness(businessId);
-        allow create: if isBusinessOwner(businessId) && isValidId(branchId);
-        allow update: if isBusinessOwner(businessId);
+        allow read, write: if isSuperAdmin();
+        allow read: if ownsBusiness(businessId);
+        allow write: if ownsBusiness(businessId) &&
+          (hasRole('Owner') || hasRole('BranchManager'));
       }
 
+      // Inventory
       match /inventory/{itemId} {
-        allow read: if isMemberOfBusiness(businessId);
-        allow create: if isMemberOfBusiness(businessId) && isValidId(itemId) && isValidInventory(incoming())
-          && incoming().businessId == businessId;
-        allow update: if isMemberOfBusiness(businessId) && isValidInventory(incoming())
-          && incoming().businessId == existing().businessId;
-        allow delete: if isBusinessOwner(businessId);
+        allow read, write: if isSuperAdmin();
+        allow read: if ownsBusiness(businessId);
+        allow write: if ownsBusiness(businessId) &&
+          (hasRole('Owner') || hasRole('BranchManager') || hasRole('StockController'));
       }
 
+      // Sales — salesperson can create only, manager+ can edit/delete
       match /sales/{saleId} {
-        allow read: if isMemberOfBusiness(businessId);
-        allow create: if isMemberOfBusiness(businessId) && isValidId(saleId) && isValidSale(incoming())
-          && incoming().businessId == businessId;
-        allow update: if isMemberOfBusiness(businessId) && isValidSale(incoming())
-          && incoming().businessId == existing().businessId
-          && incoming().createdAt == existing().createdAt
-          && (existing().status != 'completed' || isBusinessOwner(businessId));
+        allow read, write: if isSuperAdmin();
+        allow create: if ownsBusiness(businessId) && isAuth();
+        allow read: if ownsBusiness(businessId) &&
+          (hasRole('Owner') || hasRole('BranchManager') ||
+           (hasRole('Salesperson') && resource.data.createdBy == request.auth.uid) ||
+           (hasRole('Cashier') && resource.data.createdBy == request.auth.uid));
+        allow update, delete: if ownsBusiness(businessId) &&
+          (hasRole('Owner') || hasRole('BranchManager'));
       }
 
+      // Expenses
       match /expenses/{expenseId} {
-        allow read: if isMemberOfBusiness(businessId);
-        allow create: if isMemberOfBusiness(businessId) && isValidId(expenseId) && isValidExpense(incoming())
-          && incoming().businessId == businessId;
-        allow update: if isBusinessOwner(businessId) && isValidExpense(incoming())
-          && incoming().businessId == existing().businessId
-          && incoming().createdAt == existing().createdAt;
-        allow delete: if isBusinessOwner(businessId);
+        allow read, write: if isSuperAdmin();
+        allow create: if ownsBusiness(businessId);
+        allow read: if ownsBusiness(businessId) &&
+          (hasRole('Owner') || hasRole('BranchManager') ||
+           resource.data.loggedBy == request.auth.uid);
+        allow update, delete: if ownsBusiness(businessId) &&
+          (hasRole('Owner') || hasRole('BranchManager'));
       }
+
+      // All other subcollections
+      match /{collection}/{docId} {
+        allow read, write: if isSuperAdmin();
+        allow read, write: if ownsBusiness(businessId) &&
+          (hasRole('Owner') || hasRole('BranchManager'));
+      }
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if isSuperAdmin();
+      // Owner/manager can read users in their business
+      allow read: if isAuth() &&
+        get(/databases/$(database)/documents/users/$(userId)).data.businessId ==
+        userProfile().businessId;
+      // Users can read and update their own profile (not role or businessId)
+      allow read: if isAuth() && request.auth.uid == userId;
+      allow update: if isAuth() && request.auth.uid == userId &&
+        !('role' in request.resource.data.diff(resource.data).affectedKeys()) &&
+        !('businessId' in request.resource.data.diff(resource.data).affectedKeys()) &&
+        !('isAdmin' in request.resource.data.diff(resource.data).affectedKeys());
+      // Owner/manager can create users (staff) in their business
+      allow create: if isAuth() &&
+        (hasRole('Owner') || hasRole('BranchManager')) &&
+        request.resource.data.businessId == userProfile().businessId;
+      // Only owner can delete users
+      allow delete: if isAuth() && hasRole('Owner') &&
+        get(/databases/$(database)/documents/users/$(userId)).data.businessId ==
+        userProfile().businessId;
+    }
+
+    // Notifications
+    match /notifications/{id} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAuth() &&
+        (resource.data.targetUserId == request.auth.uid ||
+         resource.data.targetUserId == 'all');
+      allow update: if isAuth() &&
+        resource.data.targetUserId == request.auth.uid;
     }
   }
 }

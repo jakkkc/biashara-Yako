@@ -1,14 +1,4 @@
-/**
- * Core types for Biashara Yako POS
- */
-
-export type BusinessStatus = 'active' | 'suspended';
-export type SubscriptionPlan = 'free' | 'basic' | 'premium';
-export type UserRole = 'SuperAdmin' | 'Owner' | 'BranchManager' | 'Salesperson' | 'Cashier' | 'StockController';
-export type PaymentMethod = 'Cash' | 'Mpesa' | 'BankTransfer' | 'Credit';
-export type SaleStatus = 'completed' | 'pending' | 'refunded';
-export type TransferStatus = 'pending' | 'approved' | 'rejected';
-export type ShiftStatus = 'open' | 'closed';
+import { UserRole } from './context/AuthContext';
 
 export interface Business {
   id: string;
@@ -18,217 +8,193 @@ export interface Business {
   ownerUid: string;
   ownerEmail: string;
   logoUrl?: string;
-  status: BusinessStatus;
-  currency: string;
+  status: 'active' | 'suspended';
+  currency: 'KES';
   vatEnabled: boolean;
   vatPercentage: number;
   receiptConfig: {
-    logo?: string;
+    logoUrl?: string;
     businessName: string;
-    tagline?: string;
-    contactInfo?: string;
-    footerMessage?: string;
+    tagline: string;
+    contactInfo: string;
+    contactInfo2?: string;
+    footerMessage: string;
   };
-  subscriptionPlan: SubscriptionPlan;
-  subscriptionExpiry: number;
-  createdAt: number;
+  subscriptionPlan: 'free' | 'basic' | 'premium';
+  subscriptionExpiry: string;
+  privileges: {
+    canEditReceipts: boolean;
+    canAddBranches: boolean;
+    maxBranches: number;
+    maxUsers: number;
+  };
+  createdAt: string;
 }
 
 export interface Branch {
   id: string;
-  businessId: string;
   name: string;
   location: string;
   contactNumber: string;
   active: boolean;
-  createdAt: number;
+  createdAt: string;
 }
 
-export interface ProductVariant {
+export interface InventoryItem {
   id: string;
-  name: string;
-  price: number;
-  stock: number;
-}
-
-export interface Product {
-  id: string;
-  businessId: string;
-  branchId: string;
   name: string;
   sku: string;
   category: string;
-  variants: ProductVariant[];
+  variants?: Array<{ name: string; price: number; stock: number }>;
+  unitOfMeasure: 'Piece' | 'Kg' | 'Litre' | 'Pack' | 'Box' | 'Dozen' | 'Other';
   costPrice: number;
   sellingPrice: number;
   stock: number;
   reorderLevel: number;
   supplierName?: string;
-  unitOfMeasure: string;
-  createdAt: number;
-  updatedAt: number;
   createdBy: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface SaleItem {
-  productId: string;
-  variantId?: string;
-  name: string;
+export interface CartItem {
+  product: InventoryItem;
   quantity: number;
+  variantName?: string;
   unitPrice: number;
-  discount: number; // amount or %
-  total: number;
+  discountAmount?: number; // per item custom discount
 }
 
 export interface Sale {
   id: string;
-  businessId: string;
   branchId: string;
-  items: SaleItem[];
+  items: Array<{
+    itemId: string;
+    name: string;
+    sku: string;
+    quantity: number;
+    unitPrice: number;
+    variantName?: string;
+    discount?: number;
+    total: number;
+  }>;
   subtotal: number;
   discount: number;
   vat: number;
   total: number;
-  paymentMethod: PaymentMethod;
+  paymentMethod: 'Cash' | 'Mpesa' | 'BankTransfer' | 'Credit';
   mpesaRef?: string;
   customerId?: string;
-  status: SaleStatus;
-  createdBy: string;
+  status: 'completed' | 'pending' | 'refunded';
+  createdBy: string; // userId
   createdByName: string;
-  createdAt: number;
+  createdAt: string;
   editedBy?: string;
   editReason?: string;
-  editedAt?: number;
+  editedAt?: string;
   deletedBy?: string;
   deleteReason?: string;
 }
 
 export interface Expense {
   id: string;
-  businessId: string;
   branchId: string;
-  category: string;
+  category: 'Rent' | 'Utilities' | 'Salaries' | 'Supplies' | 'Transport' | 'Maintenance' | 'Miscellaneous' | string;
   amount: number;
   description: string;
   date: string;
   receiptPhotoUrl?: string;
   loggedBy: string;
-  createdAt: number;
+  loggedByName: string;
+  createdAt: string;
 }
 
 export interface Customer {
   id: string;
-  businessId: string;
   name: string;
-  phone: string;
+  phone?: string;
   email?: string;
   notes?: string;
   totalPurchases: number;
   visitCount: number;
   totalSpent: number;
   creditBalance: number;
-  createdAt: number;
+  createdAt: string;
 }
 
 export interface Supplier {
   id: string;
-  businessId: string;
   name: string;
-  contactPerson: string;
-  phone: string;
-  categories: string[];
-  createdAt: number;
+  contactPerson?: string;
+  phone?: string;
+  categories?: string[];
+  createdAt: string;
 }
 
 export interface StockTransfer {
   id: string;
-  businessId: string;
   fromBranchId: string;
   toBranchId: string;
-  items: {
-    productId: string;
-    productName: string;
+  items: Array<{
+    itemId: string;
+    name: string;
     quantity: number;
-  }[];
+  }>;
   requestedBy: string;
-  status: TransferStatus;
+  requestedByName: string;
+  status: 'pending' | 'approved' | 'rejected';
   approvedBy?: string;
-  createdAt: number;
-  resolvedAt?: number;
+  createdAt: string;
+  resolvedAt?: string;
 }
 
 export interface Shift {
   id: string;
-  businessId: string;
   branchId: string;
-  openedBy: string;
+  openedBy: string; // staff display name
   openingFloat: number;
   closedBy?: string;
-  expectedCash: number;
+  expectedCash?: number;
   actualCash?: number;
   variance?: number;
-  status: ShiftStatus;
-  openedAt: number;
-  closedAt?: number;
+  status: 'open' | 'closed';
+  openedAt: string;
+  closedAt?: string;
 }
 
-export type AuditAction = 
-  | 'LOGIN' | 'LOGOUT' | 'SALE_CREATED' | 'SALE_EDITED' | 'SALE_DELETED' 
-  | 'EXPENSE_ADDED' | 'EXPENSE_EDITED' | 'INVENTORY_CHANGED' | 'STOCK_TRANSFER' 
-  | 'USER_ADDED' | 'USER_EDITED' | 'USER_DELETED' | 'RECEIPT_EDITED' 
-  | 'SETTINGS_CHANGED' | 'BRANCH_ADDED' | 'SHIFT_OPENED' | 'SHIFT_CLOSED';
-
-export interface AuditLog {
+export interface AuditLogItem {
   id: string;
-  businessId: string;
-  action: AuditAction;
+  action: string;
   entity: string;
   entityId: string;
-  branchId?: string;
+  branchId: string;
   performedBy: string;
   performedByName: string;
-  details: string; // JSON string or text
-  timestamp: number;
+  details: string; // JSON Stringified
+  timestamp: string;
 }
 
-export interface UserProfile {
+export interface UserNotification {
   id: string;
   businessId: string;
-  branchId?: string;
-  role: UserRole;
-  displayName: string;
-  username?: string; // for staff
-  email?: string; // for owners
-  passwordHash?: string; // for staff
-  salt?: string; // for staff
-  isActive: boolean;
-  createdAt: number;
-  createdBy: string;
-  lastLogin?: number;
-  mustChangePassword?: boolean;
-}
-
-export interface Notification {
-  id: string;
-  businessId: string;
-  targetUserId: string; // 'all' or actual ID
-  type: string;
+  targetUserId: string; // user UID or "all"
+  type: 'LOW_STOCK' | 'LARGE_SALE' | 'STOCK_TRANSFER_REQUEST' | 'STOCK_TRANSFER_RESOLVED' | 'SUBSCRIPTION_EXPIRY' | 'ANNOUNCEMENT';
   message: string;
   read: boolean;
-  createdAt: number;
+  createdAt: string;
 }
 
 export interface Announcement {
   id: string;
   title: string;
   message: string;
-  targetBusinessId: string; // 'all' or actual ID
+  targetBusinessId: string; // "all" or businessId
   createdBy: string;
-  createdAt: number;
+  createdAt: string;
 }
 
 export interface Feedback {
   id: string;
   message: string;
-  createdAt: number;
+  createdAt: string;
 }

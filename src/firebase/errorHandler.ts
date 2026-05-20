@@ -1,4 +1,4 @@
-import { auth } from './firebase';
+import { auth } from './config';
 
 export enum OperationType {
   CREATE = 'create',
@@ -23,7 +23,7 @@ export interface FirestoreErrorInfo {
       providerId?: string | null;
       email?: string | null;
     }[];
-  }
+  };
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
@@ -42,9 +42,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     },
     operationType,
     path
-  }
-  
-  const errorMessage = JSON.stringify(errInfo);
-  console.error('Firestore Error:', errorMessage);
-  throw new Error(errorMessage);
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
 }
