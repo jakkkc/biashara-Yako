@@ -4,7 +4,7 @@
 
 export type BusinessStatus = 'active' | 'suspended';
 export type SubscriptionPlan = 'Free' | 'Basic' | 'Premium';
-export type UserRole = 'Owner' | 'BranchManager' | 'Salesperson' | 'Cashier' | 'StockController';
+export type UserRole = 'SuperAdmin' | 'Owner' | 'BranchManager' | 'Salesperson' | 'Cashier' | 'StockController';
 export type PaymentMethod = 'Cash' | 'M-Pesa' | 'Bank Transfer' | 'Credit';
 export type SaleStatus = 'completed' | 'refunded';
 export type TransferStatus = 'pending' | 'approved' | 'rejected';

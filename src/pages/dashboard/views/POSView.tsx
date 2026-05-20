@@ -16,6 +16,7 @@ import {
   Package
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 
 const categories = ['All', 'Beverages', 'Flour', 'Sugar', 'Oil', 'Hygiene', 'Snacks'];
 
@@ -33,6 +34,8 @@ export default function POSView() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [cart, setCart] = useState<any[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showMobileCart, setShowMobileCart] = useState(false);
+  const isMobile = useIsMobile();
 
   const filteredProducts = useMemo(() => {
     return demoProducts.filter(p => 
@@ -62,74 +65,11 @@ export default function POSView() {
   };
 
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-  const total = subtotal; // Simplified for now (no tax/discount logic here yet)
+  const total = subtotal;
 
-  return (
-    <div className="h-[calc(100vh-140px)] flex gap-6 overflow-hidden animate-in fade-in duration-500">
-      {/* Product Selection */}
-      <div className="flex-1 flex flex-col gap-6">
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-           <div className="flex-1 relative w-full">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
-              <input 
-                type="text" 
-                placeholder="Search products by name or SKU..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-14 pl-12 pr-4 bg-navy-muted border border-slate-800 rounded-2xl focus:border-gold/50 outline-none shadow-sm transition-all text-white"
-              />
-           </div>
-           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide max-w-full">
-              {categories.map(cat => (
-                <button 
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all whitespace-nowrap border ${
-                    activeCategory === cat 
-                      ? 'bg-gold text-navy border-gold shadow-lg shadow-gold/10' 
-                      : 'bg-navy-muted text-slate-500 border-slate-800 hover:text-slate-300 hover:border-slate-700'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-           </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 pb-4 scrollbar-thin scrollbar-thumb-slate-800">
-           {filteredProducts.map(product => (
-             <motion.button 
-               key={product.id}
-               whileTap={{ scale: 0.98 }}
-               onClick={() => addToCart(product)}
-               className="bg-navy-muted p-5 rounded-3xl border border-slate-800 shadow-sm hover:border-slate-700 hover:shadow-xl transition-all text-left flex flex-col group relative overflow-hidden"
-             >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gold/5 blur-2xl -mr-12 -mt-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="aspect-square bg-navy rounded-2xl mb-4 flex items-center justify-center border border-slate-800 group-hover:border-gold/20 transition-all relative z-10">
-                   <Package className="text-slate-700 w-10 h-10 group-hover:text-gold/50 transition-colors" />
-                </div>
-                <div className="flex-1 relative z-10">
-                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">{product.category}</p>
-                   <h3 className="font-bold text-white mb-1.5 line-clamp-2 tracking-tight">{product.name}</h3>
-                   <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Stock: {product.stock}</p>
-                   </div>
-                </div>
-                <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-800/50 relative z-10">
-                   <span className="font-black text-white text-lg tracking-tight">Ksh {product.price}</span>
-                   <div className="w-9 h-9 bg-navy border border-slate-800 rounded-xl flex items-center justify-center text-gold shadow-lg group-hover:bg-gold group-hover:text-navy group-hover:border-gold transition-all">
-                      <Plus size={18} strokeWidth={3} />
-                   </div>
-                </div>
-             </motion.button>
-           ))}
-        </div>
-      </div>
-
-      {/* Cart Container */}
-      <div className="w-96 bg-navy-muted rounded-3xl border border-slate-800 shadow-2xl flex flex-col shrink-0 overflow-hidden">
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between sticky top-0 bg-navy-muted z-10">
+  const CartUI = () => (
+    <div className="flex flex-col h-full overflow-hidden">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between sticky top-0 bg-navy-muted z-10 shrink-0">
            <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center border border-gold/20">
                  <ShoppingCart className="text-gold w-5 h-5" />
@@ -141,7 +81,7 @@ export default function POSView() {
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-hide">
            {cart.length === 0 ? (
-             <div className="h-full flex flex-col items-center justify-center text-slate-700 opacity-50">
+             <div className="h-full flex flex-col items-center justify-center text-slate-700 opacity-50 py-20">
                 <div className="w-24 h-24 bg-navy rounded-full flex items-center justify-center border border-slate-800 mb-4">
                    <ShoppingCart size={40} />
                 </div>
@@ -176,9 +116,8 @@ export default function POSView() {
            )}
         </div>
 
-        {/* Footer info */}
-        <div className="p-6 bg-slate-800/10 rounded-t-[32px] border-t border-slate-800 space-y-4">
-           <div className="grid grid-cols-2 gap-3">
+        <div className="p-6 bg-slate-800/10 border-t border-slate-800 shrink-0">
+           <div className="grid grid-cols-2 gap-3 mb-6">
               <button className="flex items-center justify-center gap-2 py-3 bg-navy border border-slate-800 rounded-xl text-slate-500 hover:text-white hover:border-slate-700 transition-all font-bold text-[10px] uppercase tracking-widest">
                  <UserPlus size={16} className="text-gold" /> Add Client
               </button>
@@ -187,7 +126,7 @@ export default function POSView() {
               </button>
            </div>
 
-           <div className="pt-2">
+           <div>
               <div className="flex justify-between text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1.5 px-1">
                  <span>Subtotal</span>
                  <span className="text-slate-300">Ksh {subtotal}</span>
@@ -200,18 +139,136 @@ export default function POSView() {
 
            <button 
              disabled={cart.length === 0}
-             onClick={() => setShowCheckout(true)}
+             onClick={() => {
+               setShowCheckout(true);
+               setShowMobileCart(false);
+             }}
              className="w-full bg-gold text-navy h-16 rounded-2xl font-black text-sm tracking-[0.1em] shadow-xl shadow-gold/5 hover:bg-gold-light transition-all disabled:opacity-30 disabled:grayscale disabled:shadow-none flex items-center justify-center gap-3 mt-4"
            >
               PAYMENT PROCESS <ChevronRight size={18} strokeWidth={3} />
            </button>
         </div>
+    </div>
+  );
+
+  return (
+    <div className="h-[calc(100vh-140px)] lg:h-full flex gap-6 overflow-hidden animate-in fade-in duration-500 relative">
+      {/* Product Selection */}
+      <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+        <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
+           <div className="flex-1 relative w-full">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+              <input 
+                type="text" 
+                placeholder="Search products by name or SKU..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full h-14 pl-12 pr-4 bg-navy-muted border border-slate-800 rounded-2xl focus:border-gold/50 outline-none shadow-sm transition-all text-white"
+              />
+           </div>
+           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide max-w-full">
+              {categories.map(cat => (
+                <button 
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all whitespace-nowrap border ${
+                    activeCategory === cat 
+                      ? 'bg-gold text-navy border-gold shadow-lg shadow-gold/10' 
+                      : 'bg-navy-muted text-slate-500 border-slate-800 hover:text-slate-300 hover:border-slate-700'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+           </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6 pb-20 lg:pb-4 scrollbar-thin scrollbar-thumb-slate-800">
+           {filteredProducts.map(product => (
+             <motion.button 
+               key={product.id}
+               whileTap={{ scale: 0.98 }}
+               onClick={() => addToCart(product)}
+               className="bg-navy-muted p-4 lg:p-5 rounded-3xl border border-slate-800 shadow-sm hover:border-slate-700 hover:shadow-xl transition-all text-left flex flex-col group relative overflow-hidden"
+             >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gold/5 blur-2xl -mr-12 -mt-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="aspect-square bg-navy rounded-2xl mb-4 flex items-center justify-center border border-slate-800 group-hover:border-gold/20 transition-all relative z-10">
+                   <Package className="text-slate-700 w-8 h-8 lg:w-10 lg:h-10 group-hover:text-gold/50 transition-colors" />
+                </div>
+                <div className="flex-1 relative z-10">
+                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">{product.category}</p>
+                   <h3 className="font-bold text-white mb-1.5 text-sm lg:text-base line-clamp-2 tracking-tight">{product.name}</h3>
+                   <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Stock: {product.stock}</p>
+                   </div>
+                </div>
+                <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-800/50 relative z-10">
+                   <span className="font-black text-white text-base lg:text-lg tracking-tight">Ksh {product.price}</span>
+                   <div className="w-9 h-9 bg-navy border border-slate-800 rounded-xl flex items-center justify-center text-gold shadow-lg group-hover:bg-gold group-hover:text-navy group-hover:border-gold transition-all">
+                      <Plus size={18} strokeWidth={3} />
+                   </div>
+                </div>
+             </motion.button>
+           ))}
+        </div>
       </div>
+
+      {/* Cart Container - Desktop */}
+      {!isMobile && (
+        <div className="w-96 bg-navy-muted rounded-3xl border border-slate-800 shadow-2xl flex flex-col shrink-0 overflow-hidden">
+          <CartUI />
+        </div>
+      )}
+
+      {/* Mobile Floating Cart Trigger */}
+      {isMobile && cart.length > 0 && !showMobileCart && (
+        <motion.button 
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          onClick={() => setShowMobileCart(true)}
+          className="fixed bottom-24 right-6 z-40 bg-gold text-navy w-16 h-16 rounded-2xl shadow-2xl flex items-center justify-center"
+        >
+          <div className="relative">
+            <ShoppingCart size={24} strokeWidth={3} />
+            <span className="absolute -top-3 -right-3 bg-white text-navy text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-gold shadow-lg">
+              {cart.length}
+            </span>
+          </div>
+        </motion.button>
+      )}
+
+      {/* Mobile Cart Drawer */}
+      <AnimatePresence>
+        {isMobile && showMobileCart && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMobileCart(false)}
+              className="fixed inset-0 bg-navy/60 backdrop-blur-sm z-[60]"
+            />
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 h-[85vh] bg-navy-muted rounded-t-[40px] z-[70] border-t border-slate-800 overflow-hidden shadow-2xl"
+            >
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-800 rounded-full mb-4" />
+              <div className="pt-4 h-full">
+                <CartUI />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Checkout Modal */}
       <AnimatePresence>
         {showCheckout && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
              <motion.div 
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
@@ -223,34 +280,34 @@ export default function POSView() {
                initial={{ scale: 0.9, opacity: 0, y: 20 }}
                animate={{ scale: 1, opacity: 1, y: 0 }}
                exit={{ scale: 0.9, opacity: 0, y: 20 }}
-               className="relative w-full max-w-xl bg-navy-muted rounded-[40px] shadow-2xl border border-slate-800 overflow-hidden"
+               className="relative w-full max-w-xl bg-navy-muted rounded-[40px] shadow-2xl border border-slate-800 overflow-hidden max-h-[90vh] flex flex-col"
              >
-                <div className="p-8 border-b border-slate-800 flex items-center justify-between">
+                <div className="p-8 border-b border-slate-800 flex items-center justify-between shrink-0">
                    <h3 className="text-2xl font-black text-white italic tracking-tighter">Transaction</h3>
                    <button onClick={() => setShowCheckout(false)} className="p-2 border border-slate-800 hover:bg-white/5 rounded-full transition-colors text-slate-500">
                       <X size={20} />
                    </button>
                 </div>
-                <div className="p-10">
+                <div className="p-8 lg:p-10 overflow-y-auto">
                    <div className="mb-10 text-center relative">
                       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-gold/5 blur-3xl rounded-full" />
                       <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] mb-3 relative z-10">Total Payable</p>
-                      <h2 className="text-6xl font-black text-white tracking-tighter relative z-10">KES {total.toLocaleString()}</h2>
+                      <h2 className="text-5xl lg:text-6xl font-black text-white tracking-tighter relative z-10">KES {total.toLocaleString()}</h2>
                    </div>
 
-                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-5 ml-1">Select Payment System</p>
+                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-5 ml-1 text-center lg:text-left">Select Payment System</p>
                    <div className="grid grid-cols-2 gap-5 mb-10">
-                      <button className="p-8 border border-slate-800 hover:border-gold/30 rounded-[32px] flex flex-col items-center gap-4 transition-all group bg-navy/30">
-                         <div className="w-16 h-16 bg-slate-800/30 rounded-2xl flex items-center justify-center group-hover:bg-gold/10 group-hover:text-gold transition-all text-slate-600 border border-transparent group-hover:border-gold/20">
-                           <Banknote size={32} />
+                      <button className="p-6 lg:p-8 border border-slate-800 hover:border-gold/30 rounded-[32px] flex flex-col items-center gap-4 transition-all group bg-navy/30">
+                         <div className="w-12 h-12 lg:w-16 lg:h-16 bg-slate-800/30 rounded-2xl flex items-center justify-center group-hover:bg-gold/10 group-hover:text-gold transition-all text-slate-600 border border-transparent group-hover:border-gold/20">
+                           <Banknote className="w-6 h-6 lg:w-8 lg:h-8" />
                          </div>
-                         <span className="font-bold text-xs uppercase tracking-widest text-slate-400 group-hover:text-white">Cash Only</span>
+                         <span className="font-bold text-[10px] lg:text-xs uppercase tracking-widest text-slate-400 group-hover:text-white">Cash Only</span>
                       </button>
-                      <button className="p-8 border-2 border-gold rounded-[32px] flex flex-col items-center gap-4 bg-gold/5 transition-all group shadow-[0_0_40px_rgba(234,179,8,0.05)]">
-                         <div className="w-16 h-16 bg-gold rounded-2xl flex items-center justify-center text-navy shadow-lg shadow-gold/20">
-                           <Smartphone size={32} strokeWidth={2.5} />
+                      <button className="p-6 lg:p-8 border-2 border-gold rounded-[32px] flex flex-col items-center gap-4 bg-gold/5 transition-all group shadow-[0_0_40px_rgba(234,179,8,0.05)]">
+                         <div className="w-12 h-12 lg:w-16 lg:h-16 bg-gold rounded-2xl flex items-center justify-center text-navy shadow-lg shadow-gold/20">
+                           <Smartphone className="w-6 h-6 lg:w-8 lg:h-8" strokeWidth={2.5} />
                          </div>
-                         <span className="font-bold text-xs uppercase tracking-widest text-white">M-Pesa Express</span>
+                         <span className="font-bold text-[10px] lg:text-xs uppercase tracking-widest text-white">M-Pesa Express</span>
                       </button>
                    </div>
 
@@ -264,11 +321,11 @@ export default function POSView() {
                    </div>
                 </div>
 
-                <div className="p-10 bg-slate-900/40 border-t border-slate-800 flex gap-4">
-                   <button className="flex-1 h-16 bg-navy-muted border border-slate-800 rounded-2xl font-bold text-slate-400 hover:text-white hover:border-slate-700 transition-all flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest">
+                <div className="p-8 lg:p-10 bg-slate-900/40 border-t border-slate-800 flex flex-col lg:flex-row gap-4 shrink-0">
+                   <button className="flex-1 h-14 lg:h-16 bg-navy-muted border border-slate-800 rounded-2xl font-bold text-slate-400 hover:text-white hover:border-slate-700 transition-all flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest">
                       <Printer size={20} className="text-gold" /> Print Bill
                    </button>
-                   <button className="flex-1 h-16 bg-gold text-navy rounded-2xl font-black text-sm tracking-widest hover:bg-gold-light transition-all shadow-xl shadow-gold/10 uppercase">
+                   <button className="flex-1 h-14 lg:h-16 bg-gold text-navy rounded-2xl font-black text-sm tracking-widest hover:bg-gold-light transition-all shadow-xl shadow-gold/10 uppercase">
                       Confirm Sale
                    </button>
                 </div>

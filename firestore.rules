@@ -26,14 +26,18 @@ service cloud.firestore {
     }
 
     function isBusinessOwner(businessId) {
-      return isSignedIn() && (
+      return isSuperAdmin() || isSignedIn() && (
         get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerEmail == request.auth.token.email
         || getUserProfile().businessId == businessId && getUserProfile().role == 'Owner'
       );
     }
 
     function isMemberOfBusiness(businessId) {
-      return isSignedIn() && getUserProfile().businessId == businessId;
+      return isSuperAdmin() || isSignedIn() && getUserProfile().businessId == businessId;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email == 'jacmwaniki@gmail.com';
     }
 
     // -------------------------------------------------------------------------
@@ -93,28 +97,30 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      allow get: if isSignedIn() && (request.auth.uid == userId || isBusinessOwner(existing().businessId));
-      allow list: if isSignedIn() && isBusinessOwner(resource.data.businessId); // Forced query filtering
+      allow get: if isSuperAdmin() || (isSignedIn() && (request.auth.uid == userId || isBusinessOwner(existing().businessId)));
+      allow list: if isSuperAdmin() || (isSignedIn() && isBusinessOwner(resource.data.businessId)); // Forced query filtering
       
-      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
-      allow update: if isSignedIn() && (
+      allow create: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin()) && isValidUser(incoming());
+      allow update: if isSuperAdmin() || (isSignedIn() && (
         (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'username', 'email']))
         || (isBusinessOwner(existing().businessId) && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'branchId']))
-      ) && isValidUser(incoming());
+      ) && isValidUser(incoming()));
+      allow delete: if isSuperAdmin();
     }
 
     // Businesses collection
     match /businesses/{businessId} {
-      allow get: if isSignedIn() && (isMemberOfBusiness(businessId) || existing().ownerEmail == request.auth.token.email);
-      allow list: if false; 
+      allow get: if isSuperAdmin() || (isSignedIn() && (isMemberOfBusiness(businessId) || existing().ownerEmail == request.auth.token.email));
+      allow list: if isSuperAdmin(); 
       
       allow create: if isSignedIn() && isValidId(businessId) && isValidBusiness(incoming()) 
-        && incoming().ownerEmail == request.auth.token.email
-        && incoming().createdAt == request.time;
+        && (incoming().ownerEmail == request.auth.token.email || isSuperAdmin());
       
-      allow update: if isSignedIn() && isBusinessOwner(businessId) && isValidBusiness(incoming())
+      allow update: if isSuperAdmin() || (isSignedIn() && isBusinessOwner(businessId) && isValidBusiness(incoming())
         && incoming().ownerEmail == existing().ownerEmail // Immortal
-        && incoming().createdAt == existing().createdAt; // Immortal
+        && incoming().createdAt == existing().createdAt); // Immortal
+
+      allow delete: if isSuperAdmin();
       
       // Subcollections
       match /branches/{branchId} {
@@ -135,8 +141,7 @@ service cloud.firestore {
       match /sales/{saleId} {
         allow read: if isMemberOfBusiness(businessId);
         allow create: if isMemberOfBusiness(businessId) && isValidId(saleId) && isValidSale(incoming())
-          && incoming().businessId == businessId
-          && incoming().createdAt == request.time;
+          && incoming().businessId == businessId;
         allow update: if isMemberOfBusiness(businessId) && isValidSale(incoming())
           && incoming().businessId == existing().businessId
           && incoming().createdAt == existing().createdAt
@@ -146,8 +151,7 @@ service cloud.firestore {
       match /expenses/{expenseId} {
         allow read: if isMemberOfBusiness(businessId);
         allow create: if isMemberOfBusiness(businessId) && isValidId(expenseId) && isValidExpense(incoming())
-          && incoming().businessId == businessId
-          && incoming().createdAt == request.time;
+          && incoming().businessId == businessId;
         allow update: if isBusinessOwner(businessId) && isValidExpense(incoming())
           && incoming().businessId == existing().businessId
           && incoming().createdAt == existing().createdAt;

@@ -12,7 +12,8 @@ import {
   ChevronRight,
   TrendingUp,
   FileText,
-  BadgeCent
+  BadgeCent,
+  ShieldAlert
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
@@ -23,7 +24,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
-  const { logout, profile } = useAuth();
+  const { logout, profile, isSuperAdmin, impersonatedId, impersonate } = useAuth();
   const navigate = useNavigate();
 
   const menuItems = [
@@ -36,6 +37,11 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     { name: 'Reports', icon: TrendingUp, path: '/dashboard/reports' },
     { name: 'Settings', icon: Settings, path: '/dashboard/settings' },
   ];
+
+  const handleBackToAdmin = () => {
+    impersonate(null);
+    navigate('/admin');
+  };
 
   // Adjust menu based on role if needed
   // ...
@@ -77,6 +83,15 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
 
       {/* Footer */}
       <div className="p-6 border-t border-slate-800 space-y-4">
+        {isSuperAdmin && impersonatedId && (
+          <button 
+            onClick={handleBackToAdmin}
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl bg-gold text-navy font-bold transition-all shadow-lg shadow-gold/10 group"
+          >
+            <ShieldAlert className={`w-5 h-5 shrink-0 ${collapsed ? 'mx-auto' : ''}`} strokeWidth={2.5} />
+            {!collapsed && <span className="font-bold text-[10px] uppercase tracking-widest whitespace-nowrap">Admin Return</span>}
+          </button>
+        )}
         {!collapsed && (
           <div className="bg-navy rounded-xl p-3 border border-slate-800">
             <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Account Owner</p>

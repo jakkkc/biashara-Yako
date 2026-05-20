@@ -19,6 +19,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   isSuperAdmin: boolean;
+  impersonate: (businessId: string | null) => void;
+  impersonatedId: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +31,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [impersonatedId, setImpersonatedId] = useState<string | null>(localStorage.getItem('biashara_impersonated_id'));
+
+  const impersonate = (id: string | null) => {
+    if (id) {
+      localStorage.setItem('biashara_impersonated_id', id);
+    } else {
+      localStorage.removeItem('biashara_impersonated_id');
+    }
+    setImpersonatedId(id);
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -39,7 +51,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const profileDoc = await getDoc(doc(db, 'users', user.uid));
           if (profileDoc.exists()) {
-            setProfile(profileDoc.data() as UserProfile);
+            let data = profileDoc.data() as UserProfile;
+            
+            // If super admin and impersonating, override businessId
+            if (user.email === SUPER_ADMIN_EMAIL && impersonatedId) {
+              data = {
+                ...data,
+                businessId: impersonatedId,
+                role: 'Owner' // Force owner role when impersonating
+              };
+            }
+            setProfile(data);
+          } else if (user.email === SUPER_ADMIN_EMAIL) {
+            // Super Admin might not have a profile, create a dummy one if impersonating
+            if (impersonatedId) {
+              setProfile({
+                id: user.uid,
+                businessId: impersonatedId,
+                role: 'Owner',
+                displayName: user.displayName || 'Super Admin',
+                email: user.email,
+                createdAt: Date.now()
+              });
+            } else {
+              setProfile({
+                id: user.uid,
+                businessId: '',
+                role: 'SuperAdmin' as any,
+                displayName: user.displayName || 'Platform Owner',
+                email: user.email,
+                createdAt: Date.now()
+              });
+            }
           } else {
             // New user, trigger registration check if owner
             setProfile(null);
@@ -54,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return unsubscribe;
-  }, []);
+  }, [impersonatedId]);
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
@@ -77,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, logout, isSuperAdmin }}>
+    <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, logout, isSuperAdmin, impersonate, impersonatedId }}>
       {children}
     </AuthContext.Provider>
   );
