@@ -21,6 +21,7 @@ interface AuthContextType {
   isSuperAdmin: boolean;
   impersonate: (businessId: string | null) => void;
   impersonatedId: string | null;
+  switchBranch: (branchId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -117,10 +118,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const switchBranch = async (branchId: string) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'users', user.uid), { branchId }, { merge: true });
+      // update local profile state
+      if (profile) {
+        setProfile({ ...profile, branchId });
+      }
+    } catch (error) {
+      console.error('Switch branch error:', error);
+      throw error;
+    }
+  };
+
   const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(user?.email || '');
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, logout, isSuperAdmin, impersonate, impersonatedId }}>
+    <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, logout, isSuperAdmin, impersonate, impersonatedId, switchBranch }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, 
   Plus, 
@@ -11,7 +12,7 @@ import {
   Store,
   Loader2
 } from 'lucide-react';
-import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../hooks/useAuth';
 import { motion, AnimatePresence } from 'motion/react';
@@ -22,13 +23,31 @@ export default function BranchesView() {
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [newBranch, setNewBranch] = useState({ name: '', location: '', code: '' });
-  const { profile } = useAuth();
+  const { profile, switchBranch } = useAuth();
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (profile?.businessId) {
       fetchBranches();
+      fetchPersonnelCounts();
     }
   }, [profile?.businessId]);
+
+  const fetchPersonnelCounts = async () => {
+    try {
+      const q = query(collection(db, 'users'), where('businessId', '==', profile?.businessId));
+      const snap = await getDocs(q);
+      const mapping: Record<string, number> = {};
+      snap.docs.forEach(d => {
+        const branchId = d.data().branchId || 'main'; // Match legacy or missing
+        mapping[branchId] = (mapping[branchId] || 0) + 1;
+      });
+      setCounts(mapping);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const fetchBranches = async () => {
     setLoading(true);
@@ -116,31 +135,41 @@ export default function BranchesView() {
                     </div>
                  </div>
 
-                 <div className="relative z-10">
-                    <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-1.5">{branch.location}</p>
-                    <h3 className="text-2xl font-black text-white italic tracking-tighter mb-6">{branch.name}</h3>
-                    
-                    <div className="grid grid-cols-2 gap-4 mb-8">
-                       <div className="p-4 bg-navy border border-slate-800 rounded-2xl">
-                          <div className="flex items-center gap-2 text-slate-500 mb-1">
-                             <Users size={12} />
-                             <span className="text-[10px] uppercase font-black tracking-widest">Operatives</span>
-                          </div>
-                          <p className="text-lg font-black text-white">0</p>
-                       </div>
-                       <div className="p-4 bg-navy border border-slate-800 rounded-2xl">
-                          <div className="flex items-center gap-2 text-gold mb-1">
-                             <TrendingUp size={12} />
-                             <span className="text-[10px] uppercase font-black tracking-widest">Growth</span>
-                          </div>
-                          <p className="text-lg font-black text-white">Steady</p>
-                       </div>
-                    </div>
+                     <div className="relative z-10">
+                        <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-1.5">{branch.location}</p>
+                        <h3 className="text-2xl font-black text-white italic tracking-tighter mb-6">{branch.name}</h3>
+                        
+                        <div className="grid grid-cols-2 gap-4 mb-8">
+                           <div className="p-4 bg-navy border border-slate-800 rounded-2xl">
+                              <div className="flex items-center gap-2 text-slate-500 mb-1">
+                                 <Users size={12} />
+                                 <span className="text-[10px] uppercase font-black tracking-widest">Operatives</span>
+                              </div>
+                              <p className="text-lg font-black text-white">{counts[branch.id] || 0}</p>
+                           </div>
+                           <div className="p-4 bg-navy border border-slate-800 rounded-2xl">
+                              <div className="flex items-center gap-2 text-gold mb-1">
+                                 <TrendingUp size={12} />
+                                 <span className="text-[10px] uppercase font-black tracking-widest">Growth</span>
+                              </div>
+                              <p className="text-lg font-black text-white">Steady</p>
+                           </div>
+                        </div>
 
-                    <button className="w-full py-4 bg-navy border border-slate-800 rounded-2xl text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] hover:text-white hover:border-slate-700 transition-all flex items-center justify-center gap-2">
-                       Enter Dashboard <ArrowRight size={14} strokeWidth={3} />
-                    </button>
-                 </div>
+                        <button 
+                          onClick={async () => {
+                            try {
+                              await switchBranch(branch.id);
+                              navigate('/dashboard');
+                            } catch (err) {
+                              alert('Failed to transition to this hub.');
+                            }
+                          }}
+                          className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${profile?.branchId === branch.id ? 'bg-gold text-navy shadow-lg shadow-gold/20' : 'bg-navy border border-slate-800 text-slate-500 hover:text-white hover:border-slate-700'}`}
+                        >
+                           {profile?.branchId === branch.id ? 'Currently Active' : 'Enter Dashboard'} <ArrowRight size={14} strokeWidth={3} />
+                        </button>
+                     </div>
               </motion.div>
            ))}
 

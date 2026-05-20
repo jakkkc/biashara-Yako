@@ -58,23 +58,6 @@ export default function RegisterBusinessPage() {
         handleFirestoreError(err, OperationType.CREATE, bizPath);
       }
       
-      // 2. Create User Profile
-      const userPath = `users/${auth.currentUser.uid}`;
-      const userProfile: UserProfile = {
-        id: auth.currentUser.uid,
-        businessId: businessId,
-        role: 'Owner',
-        displayName: auth.currentUser.displayName || 'Owner',
-        email: auth.currentUser.email || '',
-        photoUrl: auth.currentUser.photoURL || undefined,
-        createdAt: Date.now(),
-      };
-      try {
-        await setDoc(doc(db, 'users', auth.currentUser.uid), userProfile);
-      } catch (err) {
-        handleFirestoreError(err, OperationType.CREATE, userPath);
-      }
-
       // 3. Create Default Branch
       const branchId = `branch_${Date.now()}`;
       const branchPath = `businesses/${businessId}/branches/${branchId}`;
@@ -89,6 +72,24 @@ export default function RegisterBusinessPage() {
         });
       } catch (err) {
         handleFirestoreError(err, OperationType.CREATE, branchPath);
+      }
+
+      // 4. Update User Profile with primary branch
+      const userPath = `users/${auth.currentUser.uid}`;
+      const userProfile: UserProfile = {
+        id: auth.currentUser.uid,
+        businessId: businessId,
+        branchId: branchId, // Set the initial branch
+        role: 'Owner',
+        displayName: auth.currentUser.displayName || 'Owner',
+        email: auth.currentUser.email || '',
+        photoUrl: auth.currentUser.photoURL || undefined,
+        createdAt: Date.now(),
+      };
+      try {
+        await setDoc(doc(db, 'users', auth.currentUser.uid), userProfile);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.CREATE, userPath);
       }
 
       navigate('/dashboard');

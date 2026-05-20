@@ -10,13 +10,17 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 
 export default function BottomNav() {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, profile } = useAuth();
   const menuItems = [
     { name: 'Home', icon: LayoutDashboard, path: '/dashboard' },
   ];
 
   if (isSuperAdmin) {
     menuItems.push({ name: 'Admin', icon: ShieldAlert, path: '/admin' });
+  }
+
+  if (profile?.role === 'Owner') {
+    menuItems.push({ name: 'Branches', icon: Store, path: '/dashboard/branches' });
   }
 
   menuItems.push(
