@@ -4,16 +4,26 @@ import {
   ShoppingCart, 
   Package, 
   Settings,
-  MoreHorizontal
+  MoreHorizontal,
+  ShieldAlert
 } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function BottomNav() {
+  const { isSuperAdmin } = useAuth();
   const menuItems = [
     { name: 'Home', icon: LayoutDashboard, path: '/dashboard' },
+  ];
+
+  if (isSuperAdmin) {
+    menuItems.push({ name: 'Admin', icon: ShieldAlert, path: '/admin' });
+  }
+
+  menuItems.push(
     { name: 'POS', icon: ShoppingCart, path: '/dashboard/pos' },
     { name: 'Stock', icon: Package, path: '/dashboard/inventory' },
-    { name: 'Settings', icon: Settings, path: '/dashboard/settings' },
-  ];
+    { name: 'Settings', icon: Settings, path: '/dashboard/settings' }
+  );
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 h-16 bg-navy/90 backdrop-blur-xl border-t border-slate-800 flex items-center justify-around px-2 z-50 lg:hidden">

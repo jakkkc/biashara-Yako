@@ -38,6 +38,10 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     { name: 'Settings', icon: Settings, path: '/dashboard/settings' },
   ];
 
+  if (isSuperAdmin) {
+    menuItems.unshift({ name: 'Admin Console', icon: ShieldAlert, path: '/admin' });
+  }
+
   const handleBackToAdmin = () => {
     impersonate(null);
     navigate('/admin');

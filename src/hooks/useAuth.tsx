@@ -25,7 +25,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SUPER_ADMIN_EMAIL = 'jacmwaniki@gmail.com';
+const SUPER_ADMIN_EMAILS = ['jacmwaniki@gmail.com', 'nexinking01@gmail.com'];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             let data = profileDoc.data() as UserProfile;
             
             // If super admin and impersonating, override businessId
-            if (user.email === SUPER_ADMIN_EMAIL && impersonatedId) {
+            if (SUPER_ADMIN_EMAILS.includes(user.email || '') && impersonatedId) {
               data = {
                 ...data,
                 businessId: impersonatedId,
@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               };
             }
             setProfile(data);
-          } else if (user.email === SUPER_ADMIN_EMAIL) {
+          } else if (SUPER_ADMIN_EMAILS.includes(user.email || '')) {
             // Super Admin might not have a profile, create a dummy one if impersonating
             if (impersonatedId) {
               setProfile({
@@ -117,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(user?.email || '');
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, logout, isSuperAdmin, impersonate, impersonatedId }}>
