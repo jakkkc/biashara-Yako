@@ -21,7 +21,7 @@ import {
 import { collection, query, getDocs, doc, setDoc, deleteDoc, where, updateDoc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../hooks/useAuth';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { UserProfile, UserRole, Branch } from '../../../types';
 import { hashPassword, generateSalt } from '../../../utils/hashPassword';
 

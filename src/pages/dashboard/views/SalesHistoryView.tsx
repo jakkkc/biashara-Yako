@@ -15,7 +15,7 @@ import { collection, query, getDocs, orderBy, where, limit } from 'firebase/fire
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../hooks/useAuth';
 import { Sale, Branch } from '../../../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function SalesHistoryView() {
   const [sales, setSales] = useState<Sale[]>([]);

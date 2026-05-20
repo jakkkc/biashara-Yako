@@ -16,7 +16,7 @@ import {
 import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../hooks/useAuth';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Branch } from '../../../types';
 
 export default function BranchesView() {

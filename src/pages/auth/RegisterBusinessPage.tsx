@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Store, ChevronRight, ChevronLeft, MapPin, Briefcase, CheckCircle2, Loader2, Upload, DollarSign, Image as ImageIcon, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { doc, setDoc } from 'firebase/firestore';

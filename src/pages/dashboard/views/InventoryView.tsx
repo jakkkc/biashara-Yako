@@ -14,7 +14,7 @@ import {
   Loader2,
   X
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../hooks/useAuth';

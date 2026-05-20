@@ -19,7 +19,7 @@ import {
   CheckCircle2,
   Store
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { collection, query, getDocs, doc, setDoc, writeBatch, increment } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';

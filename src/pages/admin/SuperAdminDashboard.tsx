@@ -20,7 +20,7 @@ import { db } from '../../lib/firebase';
 import { Business, BusinessStatus } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
 export default function SuperAdminDashboard() {

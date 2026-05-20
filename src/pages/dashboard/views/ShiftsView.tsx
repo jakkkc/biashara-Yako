@@ -13,7 +13,7 @@ import {
   ChevronRight,
   ChevronLeft
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, getDocs, doc, setDoc, where, orderBy, limit, updateDoc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../hooks/useAuth';
