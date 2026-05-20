@@ -21,8 +21,7 @@ import {
 import { collection, query, getDocs, doc, setDoc, deleteDoc, where } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { db } from '../../../lib/firebase';
-import firebaseConfig from '../../../../firebase-applet-config.json';
+import { db, app } from '../../../lib/firebase';
 import { useAuth } from '../../../hooks/useAuth';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, UserRole, Branch } from '../../../types';
@@ -121,7 +120,7 @@ export default function UsersView() {
 
       // 2. Create Auth User using a secondary app instance to preserve current session
       const appName = `SecondaryApp-${Date.now()}`;
-      secondaryApp = initializeApp(firebaseConfig, appName);
+      secondaryApp = initializeApp(app.options, appName);
       const secondaryAuth = getAuth(secondaryApp);
       
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newUser.email, newUser.password);

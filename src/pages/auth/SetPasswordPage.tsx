@@ -15,14 +15,14 @@ export default function SetPasswordPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
   
-  const { user, profile, logout } = useAuth();
+  const { user, profile, loading, logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!profile?.mustChangePassword && !isSuccess) {
+    if (!loading && profile && !profile.mustChangePassword && !isSuccess) {
       navigate('/dashboard');
     }
-  }, [profile, isSuccess, navigate]);
+  }, [profile, loading, isSuccess, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -12,8 +12,11 @@ import {
   Globe
 } from 'lucide-react';
 
+import { useIsMobile } from '../hooks/useIsMobile';
+
 export default function LandingPage() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
@@ -47,13 +50,18 @@ export default function LandingPage() {
           </div>
           <span className="text-2xl font-black italic tracking-tighter">BIASHARA YAKO</span>
         </div>
-        <div className="flex items-center gap-4 sm:gap-8">
-          <button onClick={() => navigate('/login')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-gold transition-colors">SignIn</button>
+        <div className="flex items-center gap-1 sm:gap-4">
+          <button 
+            onClick={() => navigate('/login')} 
+            className="px-3 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest text-white/70 hover:text-gold transition-colors"
+          >
+            Sign In
+          </button>
           <button 
             onClick={() => navigate('/register-business')}
-            className="px-8 py-3 bg-gold text-navy rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-gold/10 hover:bg-gold-light transition-all"
+            className="px-4 sm:px-8 py-2.5 sm:py-3 bg-gold text-navy rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest shadow-xl shadow-gold/10 hover:bg-gold-light transition-all active:scale-95 whitespace-nowrap"
           >
-            Launch Enterprise
+            {isMobile ? 'Launch Hub' : 'Launch Enterprise'}
           </button>
         </div>
       </nav>
