@@ -23,6 +23,7 @@ export default function BranchesView() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [isSwitching, setIsSwitching] = useState<string | null>(null);
   const [newBranch, setNewBranch] = useState({ name: '', location: '', code: '' });
   const { profile, switchBranch } = useAuth();
@@ -37,6 +38,23 @@ export default function BranchesView() {
       setLoading(false);
     }
   }, [profile?.businessId]);
+
+  const handleEditBranch = async () => {
+    if (!profile?.businessId || !editingBranch) return;
+    setLoading(true);
+    try {
+      await updateDoc(doc(db, `businesses/${profile.businessId}/branches`, editingBranch.id), {
+        name: editingBranch.name,
+        location: editingBranch.location,
+      });
+      setEditingBranch(null);
+      fetchBranches();
+    } catch (error) {
+       console.error(error);
+    } finally {
+       setLoading(false);
+    }
+  };
 
   const fetchPersonnelCounts = async () => {
     try {
@@ -154,6 +172,12 @@ export default function BranchesView() {
                          <Store size={32} strokeWidth={isActive ? 2.5 : 2} />
                       </div>
                       <div className="flex items-center gap-2">
+                         <button 
+                           onClick={() => setEditingBranch(branch)} 
+                           className="p-3 bg-navy border border-slate-800 rounded-xl text-slate-600 hover:text-gold hover:border-gold/30 transition-all hover:bg-gold/5"
+                         >
+                            <Edit2 size={16} />
+                         </button>
                          <button 
                            onClick={() => deleteBranch(branch.id, branch.name)} 
                            className="p-3 bg-navy border border-slate-800 rounded-xl text-slate-600 hover:text-red-500 hover:border-red-500/30 transition-all hover:bg-red-500/5"
@@ -294,6 +318,66 @@ export default function BranchesView() {
                       className="flex-[2] h-18 bg-gold text-navy rounded-[28px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-gold/20 hover:bg-gold-light transition-all disabled:opacity-30 disabled:scale-100 active:scale-95"
                     >
                       INITIALIZE CORE
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {editingBranch && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setEditingBranch(null)}
+              className="absolute inset-0 bg-navy/95 backdrop-blur-xl" 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 70 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 70 }}
+              className="relative w-full max-w-lg bg-navy-muted border border-slate-800 rounded-[50px] p-10 lg:p-14 shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gold/5 blur-[80px] -mr-32 -mt-32" />
+              
+              <div className="relative z-10">
+                <h3 className="text-4xl font-black text-white italic tracking-tighter mb-4">Reconfigure Hub</h3>
+                <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest mb-12">Updating parameters for {editingBranch.name}</p>
+                
+                <div className="space-y-8">
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Hub Identifier</label>
+                    <input 
+                      type="text" 
+                      value={editingBranch.name}
+                      onChange={(e) => setEditingBranch({...editingBranch, name: e.target.value})}
+                      className="w-full h-18 px-8 bg-navy border border-slate-800 rounded-[28px] text-white outline-none focus:border-gold focus:ring-4 focus:ring-gold/5 transition-all font-black uppercase text-sm tracking-widest"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Geographical Sector</label>
+                    <input 
+                      type="text" 
+                      value={editingBranch.location}
+                      onChange={(e) => setEditingBranch({...editingBranch, location: e.target.value})}
+                      className="w-full h-18 px-8 bg-navy border border-slate-800 rounded-[28px] text-white outline-none focus:border-gold focus:ring-4 focus:ring-gold/5 transition-all font-black uppercase text-sm tracking-widest"
+                    />
+                  </div>
+                  
+                  <div className="flex gap-6 pt-10">
+                    <button 
+                      onClick={() => setEditingBranch(null)}
+                      className="flex-1 h-16 font-black text-[11px] uppercase tracking-[0.2em] text-slate-500 hover:text-white transition-colors"
+                    >
+                      CANCEL
+                    </button>
+                    <button 
+                      onClick={handleEditBranch}
+                      disabled={loading || !editingBranch.name}
+                      className="flex-[2] h-18 bg-gold text-navy rounded-[28px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-gold/20 hover:bg-gold-light transition-all disabled:opacity-30 disabled:scale-100 active:scale-95"
+                    >
+                      UPDATE PARAMETERS
                     </button>
                   </div>
                 </div>

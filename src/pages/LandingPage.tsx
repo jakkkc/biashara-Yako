@@ -47,8 +47,8 @@ export default function LandingPage() {
           </div>
           <span className="text-2xl font-black italic tracking-tighter">BIASHARA YAKO</span>
         </div>
-        <div className="flex items-center gap-8">
-          <button onClick={() => navigate('/login')} className="hidden sm:block text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-gold transition-colors">SignIn</button>
+        <div className="flex items-center gap-4 sm:gap-8">
+          <button onClick={() => navigate('/login')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-gold transition-colors">SignIn</button>
           <button 
             onClick={() => navigate('/register-business')}
             className="px-8 py-3 bg-gold text-navy rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-gold/10 hover:bg-gold-light transition-all"

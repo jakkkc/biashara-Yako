@@ -18,12 +18,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { collection, query, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../hooks/useAuth';
-import { Product } from '../../../types';
+import { Product, Branch } from '../../../types';
 
 export default function InventoryView() {
   const [inventory, setInventory] = useState<Product[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [newProduct, setNewProduct] = useState({
     name: '',
@@ -32,24 +35,50 @@ export default function InventoryView() {
     costPrice: 0,
     sellingPrice: 0,
     quantity: 0,
-    reorderLevel: 5
+    reorderLevel: 5,
+    branchId: ''
   });
   const { profile } = useAuth();
 
   useEffect(() => {
     if (profile?.businessId) {
+      fetchBranches();
+      if (profile.branchId && !selectedBranchId) {
+        setSelectedBranchId(profile.branchId);
+      }
+    }
+  }, [profile?.businessId, profile?.role]);
+
+  useEffect(() => {
+    if (profile?.businessId) {
       fetchInventory();
     }
-  }, [profile?.businessId, profile?.branchId]);
+  }, [profile?.businessId, selectedBranchId]);
+
+  const fetchBranches = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, `businesses/${profile?.businessId}/branches`));
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Branch));
+      setBranches(data);
+    } catch (error) {
+       console.error(error);
+    }
+  };
 
   const fetchInventory = async () => {
     setLoading(true);
     try {
-      // In a real multi-branch setup, we'd filter or fetch from a subcollection
-      // For this implementation, we use a central inventory subcollection per business
       const q = query(collection(db, `businesses/${profile?.businessId}/inventory`));
       const snapshot = await getDocs(q);
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      
+      // Filter by branch if selected
+      if (selectedBranchId) {
+        data = data.filter(p => p.branchId === selectedBranchId);
+      } else if (profile?.role !== 'Owner' && profile?.branchId) {
+        data = data.filter(p => p.branchId === profile.branchId);
+      }
+      
       setInventory(data);
     } catch (error) {
        console.error('Inventory fetch error:', error);
@@ -69,15 +98,40 @@ export default function InventoryView() {
         ...newProduct,
         id,
         sku,
-        branchId: profile.branchId || 'main',
+        branchId: newProduct.branchId || profile.branchId || 'main',
         createdAt: Date.now()
       });
       setShowAddModal(false);
+      setNewProduct({
+        name: '',
+        category: 'Retail',
+        sku: '',
+        costPrice: 0,
+        sellingPrice: 0,
+        quantity: 0,
+        reorderLevel: 5,
+        branchId: ''
+      });
       fetchInventory();
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditProduct = async () => {
+    if (!profile?.businessId || !editingProduct) return;
+    setLoading(true);
+    try {
+      const { id, ...updateData } = editingProduct;
+      await setDoc(doc(db, `businesses/${profile.businessId}/inventory`, id), updateData, { merge: true });
+      setEditingProduct(null);
+      fetchInventory();
+    } catch (error) {
+       console.error(error);
+    } finally {
+       setLoading(false);
     }
   };
 
@@ -131,12 +185,19 @@ export default function InventoryView() {
               className="w-full h-11 pl-12 pr-4 bg-navy border border-transparent focus:border-slate-700 rounded-xl text-sm transition-all outline-none text-white"
             />
          </div>
-         <div className="flex gap-2">
+         <div className="flex flex-wrap gap-2">
+            {profile?.role === 'Owner' && (
+              <select 
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+                className="px-4 py-2 bg-navy border border-slate-800 hover:border-gold/30 rounded-xl text-slate-400 font-bold text-xs flex items-center gap-2 transition-all outline-none"
+              >
+                <option value="">All Branches</option>
+                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            )}
             <button className="px-4 py-2 bg-navy border border-slate-800 hover:border-slate-700 rounded-xl text-slate-400 font-bold text-sm flex items-center gap-2 transition-all">
                <Filter size={18} /> Category
-            </button>
-            <button className="px-4 py-2 bg-navy border border-slate-800 hover:border-slate-700 rounded-xl text-slate-400 font-bold text-sm flex items-center gap-2 transition-all">
-               <ArrowUpDown size={18} /> Sort
             </button>
          </div>
       </div>
@@ -205,14 +266,14 @@ export default function InventoryView() {
                            </td>
                            <td className="px-8 py-5 text-right">
                               <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                 <button className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
+                                 <button 
+                                   onClick={() => setEditingProduct(item)}
+                                   className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+                                 >
                                     <Edit2 size={16} />
                                  </button>
                                  <button onClick={() => deleteProduct(item.id)} className="p-2 text-slate-500 hover:text-red-500 hover:bg-slate-800 rounded-lg transition-all">
                                     <Trash2 size={16} />
-                                 </button>
-                                 <button className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
-                                    <MoreHorizontal size={16} />
                                  </button>
                               </div>
                            </td>
@@ -292,6 +353,17 @@ export default function InventoryView() {
                            <option value="Hygiene">Hygiene</option>
                         </select>
                      </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Operational Hub (Branch)</label>
+                        <select 
+                           value={newProduct.branchId}
+                           onChange={(e) => setNewProduct({...newProduct, branchId: e.target.value})}
+                           className="w-full h-14 px-6 bg-navy border border-slate-800 rounded-2xl text-gold outline-none focus:border-gold/50 transition-all font-bold appearance-none"
+                        >
+                           <option value="">Default (Current Active)</option>
+                           {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                        </select>
+                     </div>
                   </div>
 
                   <div className="space-y-6">
@@ -345,6 +417,116 @@ export default function InventoryView() {
                   className="w-full h-16 bg-gold text-navy rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-gold/10 hover:bg-gold-light transition-all mt-10 disabled:opacity-30"
                >
                   {loading ? <Loader2 className="animate-spin" /> : 'Authorize Inventory Integration'}
+               </button>
+            </motion.div>
+          </div>
+        )}
+
+        {editingProduct && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+               onClick={() => setEditingProduct(null)}
+               className="absolute inset-0 bg-navy/80 backdrop-blur-md" 
+            />
+            <motion.div 
+               initial={{ opacity: 0, scale: 0.9, y: 20 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.9, y: 20 }}
+               className="relative w-full max-w-2xl bg-navy-muted border border-slate-800 rounded-[40px] p-10 shadow-2xl overflow-y-auto max-h-[90vh]"
+            >
+               <div className="flex items-center justify-between mb-10">
+                  <div>
+                    <h3 className="text-3xl font-black text-white italic tracking-tighter">Stock Adjustment</h3>
+                    <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest mt-1">Reconfiguring parameters for {editingProduct.name}</p>
+                  </div>
+                  <button onClick={() => setEditingProduct(null)} className="w-10 h-10 bg-navy border border-slate-800 rounded-full flex items-center justify-center text-slate-500 hover:text-white transition-colors">
+                     <X size={20} />
+                  </button>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Product Nomenclature</label>
+                        <input 
+                           type="text" 
+                           value={editingProduct.name}
+                           onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
+                           className="w-full h-14 px-6 bg-navy border border-slate-800 rounded-2xl text-white outline-none focus:border-gold/50 transition-all font-bold"
+                        />
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">System SKU (Unique)</label>
+                        <input 
+                           type="text" 
+                           value={editingProduct.sku}
+                           onChange={(e) => setEditingProduct({...editingProduct, sku: e.target.value})}
+                           className="w-full h-14 px-6 bg-navy border border-slate-800 rounded-2xl text-white outline-none focus:border-gold/50 transition-all font-mono uppercase"
+                        />
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Operational Hub (Branch)</label>
+                        <select 
+                           value={editingProduct.branchId}
+                           onChange={(e) => setEditingProduct({...editingProduct, branchId: e.target.value})}
+                           className="w-full h-14 px-6 bg-navy border border-slate-800 rounded-2xl text-gold outline-none focus:border-gold/50 transition-all font-bold appearance-none"
+                        >
+                           {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                        </select>
+                     </div>
+                  </div>
+
+                  <div className="space-y-6">
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Acquisition Cost</label>
+                           <input 
+                              type="number" 
+                              value={editingProduct.costPrice}
+                              onChange={(e) => setEditingProduct({...editingProduct, costPrice: Number(e.target.value)})}
+                              className="w-full h-14 px-6 bg-navy border border-slate-800 rounded-2xl text-gold outline-none focus:border-gold/50 transition-all font-black text-lg"
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Retail Price</label>
+                           <input 
+                              type="number" 
+                              value={editingProduct.sellingPrice}
+                              onChange={(e) => setEditingProduct({...editingProduct, sellingPrice: Number(e.target.value)})}
+                              className="w-full h-14 px-6 bg-navy border border-slate-800 rounded-2xl text-white outline-none focus:border-gold/50 transition-all font-black text-lg"
+                           />
+                        </div>
+                     </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Current Quantum</label>
+                           <input 
+                              type="number" 
+                              value={editingProduct.quantity}
+                              onChange={(e) => setEditingProduct({...editingProduct, quantity: Number(e.target.value)})}
+                              className="w-full h-14 px-6 bg-navy border border-slate-800 rounded-2xl text-white outline-none focus:border-gold/50 transition-all font-black text-lg"
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Reorder Threshold</label>
+                           <input 
+                              type="number" 
+                              value={editingProduct.reorderLevel}
+                              onChange={(e) => setEditingProduct({...editingProduct, reorderLevel: Number(e.target.value)})}
+                              className="w-full h-14 px-6 bg-navy border border-slate-800 rounded-2xl text-red-500 outline-none focus:border-red-500/50 transition-all font-black text-lg cursor-help"
+                           />
+                        </div>
+                     </div>
+                  </div>
+               </div>
+
+               <button 
+                  onClick={handleEditProduct}
+                  disabled={loading || !editingProduct.name}
+                  className="w-full h-16 bg-gold text-navy rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-gold/10 hover:bg-gold-light transition-all mt-10 disabled:opacity-30"
+               >
+                  {loading ? <Loader2 className="animate-spin" /> : 'Confirm Parameter Sync'}
                </button>
             </motion.div>
           </div>

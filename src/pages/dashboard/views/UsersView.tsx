@@ -22,6 +22,7 @@ export default function UsersView() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [newUser, setNewUser] = useState({ 
     displayName: '', 
     username: '', 
@@ -37,6 +38,21 @@ export default function UsersView() {
       fetchBranches();
     }
   }, [profile?.businessId]);
+
+  const handleEditUser = async () => {
+    if (!profile?.businessId || !editingUser) return;
+    setLoading(true);
+    try {
+      const { id, ...updateData } = editingUser;
+      await setDoc(doc(db, 'users', id), updateData, { merge: true });
+      setEditingUser(null);
+      fetchUsers();
+    } catch (error) {
+       console.error(error);
+    } finally {
+       setLoading(false);
+    }
+  };
 
   const fetchUsers = async () => {
     if (!profile?.businessId) return;
@@ -142,6 +158,12 @@ export default function UsersView() {
                    </div>
                 </div>
                 <div className="flex gap-2">
+                   <button 
+                     onClick={() => setEditingUser(user)}
+                     className="p-4 bg-navy border border-slate-800 rounded-2xl text-slate-600 hover:text-gold transition-colors"
+                   >
+                      <Edit2 size={20} />
+                   </button>
                    <button onClick={() => deleteUser(user.id)} className="p-4 bg-navy border border-slate-800 rounded-2xl text-slate-600 hover:text-red-500 transition-colors">
                       <Trash2 size={20} />
                    </button>
@@ -241,6 +263,79 @@ export default function UsersView() {
                     className="flex-[2] h-14 bg-gold text-navy rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-gold/10 disabled:opacity-30"
                   >
                     Authorize Enlistment
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {editingUser && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setEditingUser(null)}
+              className="absolute inset-0 bg-navy/80 backdrop-blur-md" 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-lg bg-navy-muted border border-slate-800 rounded-[40px] p-10 shadow-2xl overflow-y-auto max-h-[90vh]"
+            >
+              <h3 className="text-3xl font-black text-white italic tracking-tighter mb-2">Modify Protocol</h3>
+              <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest mb-10">Updating clearance for {editingUser.displayName || editingUser.username}</p>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Public Designation</label>
+                  <input 
+                    type="text" 
+                    value={editingUser.displayName}
+                    onChange={(e) => setEditingUser({...editingUser, displayName: e.target.value})}
+                    className="w-full h-16 px-6 bg-navy border border-slate-800 rounded-2xl text-white outline-none focus:border-gold/50 transition-all font-bold"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Core Role Assignment</label>
+                  <select 
+                    value={editingUser.role}
+                    onChange={(e) => setEditingUser({...editingUser, role: e.target.value as any})}
+                    className="w-full h-16 px-6 bg-navy border border-slate-800 rounded-2xl text-white outline-none focus:border-gold/50 appearance-none font-bold"
+                  >
+                    <option value="Salesperson">Salesperson</option>
+                    <option value="BranchManager">Branch Manager</option>
+                    <option value="Cashier">Cashier</option>
+                    <option value="StockController">Stock Controller</option>
+                    <option value="Owner">Owner (Warning: Full Access)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Terminal Assignment (Branch)</label>
+                  <select 
+                    value={editingUser.branchId}
+                    onChange={(e) => setEditingUser({...editingUser, branchId: e.target.value})}
+                    className="w-full h-16 px-6 bg-navy border border-slate-800 rounded-2xl text-white outline-none focus:border-gold/50 appearance-none font-bold"
+                  >
+                    <option value="">Consortium Wide</option>
+                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                </div>
+                
+                <div className="flex gap-4 pt-6">
+                  <button 
+                    onClick={() => setEditingUser(null)}
+                    className="flex-1 h-14 font-black text-[10px] uppercase tracking-widest text-slate-500 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleEditUser}
+                    disabled={loading || !editingUser.displayName}
+                    className="flex-[2] h-14 bg-gold text-navy rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-gold/10 disabled:opacity-30"
+                  >
+                    Confirm Changes
                   </button>
                 </div>
               </div>

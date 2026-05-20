@@ -16,14 +16,15 @@ import {
   Package,
   Loader2,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  Store
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { collection, query, getDocs, doc, setDoc, writeBatch, increment } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../hooks/useAuth';
-import { Product, Sale } from '../../../types';
+import { Product, Sale, Branch } from '../../../types';
 
 const categories = ['All', 'Retail', 'Beverages', 'Agrovet', 'Hygiene', 'Food', 'Other'];
 
@@ -31,6 +32,7 @@ export default function POSView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [products, setProducts] = useState<Product[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -44,15 +46,37 @@ export default function POSView() {
   useEffect(() => {
     if (profile?.businessId) {
       fetchProducts();
+      fetchBranches();
     }
   }, [profile?.businessId]);
+
+  const fetchBranches = async () => {
+    try {
+      const q = query(collection(db, `businesses/${profile?.businessId}/branches`));
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Branch));
+      setBranches(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const currentBranchName = useMemo(() => {
+    return branches.find(b => b.id === profile?.branchId)?.name || 'Main Station';
+  }, [branches, profile?.branchId]);
 
   const fetchProducts = async () => {
     setLoading(true);
     try {
       const q = query(collection(db, `businesses/${profile?.businessId}/inventory`));
       const snapshot = await getDocs(q);
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      
+      // Filter by the currently active branch in the POS
+      if (profile?.branchId) {
+        data = data.filter(p => p.branchId === profile.branchId);
+      }
+      
       setProducts(data);
     } catch (error) {
       console.error(error);
@@ -237,6 +261,12 @@ export default function POSView() {
       {/* Product Selection */}
       <div className="flex-1 flex flex-col gap-6 overflow-hidden">
         <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
+           <div className="shrink-0 hidden lg:block">
+              <div className="flex items-center gap-2 px-4 py-2 bg-gold/10 border border-gold/20 rounded-xl">
+                 <Store size={14} className="text-gold" />
+                 <span className="text-[10px] font-black text-gold uppercase tracking-widest">{currentBranchName}</span>
+              </div>
+           </div>
            <div className="flex-1 relative w-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
               <input 

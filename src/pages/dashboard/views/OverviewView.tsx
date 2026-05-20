@@ -30,7 +30,7 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-import { collection, query, getDocs, limit, orderBy } from 'firebase/firestore';
+import { collection, query, getDocs, limit, orderBy, where } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../hooks/useAuth';
 import { Sale, Branch, Product, UserProfile } from '../../../types';
@@ -70,10 +70,9 @@ export default function OverviewView() {
       const branches = branchesSnap.docs.map(d => d.data() as Branch);
 
       // 3. Fetch Staff
-      // Note: This requires the fixed query from UsersView logic if we wanted filtering, 
-      // but for dashboard stats, we can fetch all business users
-      const usersSnap = await getDocs(collection(db, 'users'));
-      const staffCount = usersSnap.docs.filter(d => d.data().businessId === bizId).length;
+      const usersQ = query(collection(db, 'users'), where('businessId', '==', bizId));
+      const usersSnap = await getDocs(usersQ);
+      const staffCount = usersSnap.size;
 
       // 4. Group Sales by Branch for Chart
       const branchPerformance = branches.map(b => {
