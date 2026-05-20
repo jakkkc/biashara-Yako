@@ -29,14 +29,21 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
 
   const menuItems = [
     { name: 'Overview', icon: LayoutDashboard, path: '/dashboard' },
-    { name: 'POS', icon: ShoppingCart, path: '/dashboard/pos' },
-    { name: 'Inventory', icon: Package, path: '/dashboard/inventory' },
-    { name: 'Sales History', icon: Receipt, path: '/dashboard/sales' },
-    { name: 'Expenses', icon: BadgeCent, path: '/dashboard/expenses' },
-    { name: 'Customers', icon: Users, path: '/dashboard/customers' },
-    { name: 'Reports', icon: TrendingUp, path: '/dashboard/reports' },
-    { name: 'Settings', icon: Settings, path: '/dashboard/settings' },
   ];
+
+  if (profile?.role === 'Owner') {
+    menuItems.push({ name: 'Active Hubs', icon: Store, path: '/dashboard/branches' });
+  }
+
+  menuItems.push(
+    { name: 'POS Terminal', icon: ShoppingCart, path: '/dashboard/pos' },
+    { name: 'Inventory', icon: Package, path: '/dashboard/inventory' },
+    { name: 'Sales Log', icon: Receipt, path: '/dashboard/sales' },
+    { name: 'Expense Matrix', icon: BadgeCent, path: '/dashboard/expenses' },
+    { name: 'Personnel', icon: Users, path: '/dashboard/users' },
+    { name: 'Intelligence', icon: TrendingUp, path: '/dashboard/reports' },
+    { name: 'Settings', icon: Settings, path: '/dashboard/settings' },
+  );
 
   if (isSuperAdmin) {
     menuItems.unshift({ name: 'Admin Console', icon: ShieldAlert, path: '/admin' });

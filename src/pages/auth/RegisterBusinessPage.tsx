@@ -283,6 +283,21 @@ export default function RegisterBusinessPage() {
           )}
         </AnimatePresence>
       </div>
+
+      <div className="mt-12 py-8 border-t border-slate-800/50 text-center relative z-10 w-full max-w-xl">
+        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] mb-1">Empowering Local Commerce</p>
+        <div className="text-[10px] font-black uppercase tracking-widest mt-2">
+          <span className="text-slate-700">Crafted by</span>{" "}
+          <a 
+            href="https://nex-chi-six.vercel.app" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-gold hover:text-white transition-colors underline decoration-gold/30 underline-offset-4"
+          >
+            Jackson Mwaniki Munene
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

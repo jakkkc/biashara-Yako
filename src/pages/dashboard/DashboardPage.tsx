@@ -11,6 +11,8 @@ import ExpensesView from './views/ExpensesView';
 import CustomersView from './views/CustomersView';
 import ReportsView from './views/ReportsView';
 import SettingsView from './views/SettingsView';
+import BranchesView from './views/BranchesView';
+import UsersView from './views/UsersView';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function DashboardPage() {
@@ -70,6 +72,8 @@ export default function DashboardPage() {
             <Route path="customers" element={<CustomersView />} />
             <Route path="reports" element={<ReportsView />} />
             <Route path="settings" element={<SettingsView />} />
+            <Route path="branches" element={<BranchesView />} />
+            <Route path="users" element={<UsersView />} />
           </Routes>
         </div>
 
